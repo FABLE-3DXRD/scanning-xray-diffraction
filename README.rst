@@ -16,4 +16,3 @@ underlying `publication`_:
     2021, under review for Journal of Applied Crystalography*
 
 .. _publication: https://www.researchgate.net/publication/349520623_Intragranular_Strain_Estimation_in_Far-Field_Scanning_X-ray_Diffraction_using_a_Gaussian_Processes
-
