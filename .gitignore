@@ -32,6 +32,9 @@ share/python-wheels/
 MANIFEST
 
 # vs code stuff
+vscode
+.vscode
+.vscode/
 .vscode/*
 */.VSCodeCounter/*
 
