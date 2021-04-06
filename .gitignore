@@ -1,5 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+s3dxrd/__pycache__/*
+s3dxrd/measurement/__pycache__/*
+s3dxrd/regression/__pycache__/*
+s3dxrd/utils/__pycache__/*
 *.py[cod]
 *$py.class
 
@@ -31,6 +35,7 @@ MANIFEST
 .vscode/*
 */.VSCodeCounter/*
 
+*.pyc
 
 # Local History for Visual Studio Code
 .history/

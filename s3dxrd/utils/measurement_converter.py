@@ -154,7 +154,7 @@ def convert_measurements( params, grain, flt, ymin, ystep, omegastep ):
             all_hkl.append( [h,k,l] )
             bragg_order, d_measured, d_original, eps = strain(B_0, h, k, l, tth, wavelength)
 
-
+            grain.u = tools.ubi_to_u(grain.ubi)
             G_0 = grain.u.dot( B_0.dot( np.array([h,k,l]) ) )
             Qlab = get_Q(tth, eta, wavelength)
             Qomega = -np.dot( np.linalg.inv( omega_matrix( om ) ), Qlab )
