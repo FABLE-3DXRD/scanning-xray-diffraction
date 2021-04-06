@@ -19,7 +19,7 @@ underlying `publication`_:
 A preprint of describing the Gaussian Process regression procedure is also available `here`_:
 
     *Intragranular Strain Estimation in Far-Field Scanning X-ray Diffraction using a Gaussian Processes, 
-     Axel Henningsson and Johannes Hendriks. (2021). arXiv Preprint.*
+    Axel Henningsson and Johannes Hendriks. (2021). arXiv Preprint.*
 
 .. _here: https://arxiv.org/abs/2102.11018
 
