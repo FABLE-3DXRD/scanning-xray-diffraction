@@ -11,11 +11,10 @@ guaranteed to be in local static equlibrium by imposing a prior constraint on th
 If you want to use this code, it is strongly recomended that you have a look at the
 underlying `publication`_:
 
-    *Intragranular Strain Estimation in Far-Field Scanning X-ray 
-    Diffraction using a Gaussian Processes, Axel Henningsson and Johannes Hendriks, 
-    2021, under review for Journal of Applied Crystalography*
+    *Reconstructing intragranular strain fields in polycrystalline materials from scanning 3DXRD data, 
+    Henningsson, N. A., Hall, S. A., Wright, J. P. & Hektor, J. (2020). J. Appl. Cryst. 53, 314-325.*
 
-.. _publication: https://www.researchgate.net/publication/349520623_Intragranular_Strain_Estimation_in_Far-Field_Scanning_X-ray_Diffraction_using_a_Gaussian_Processes
+.. _publication: https://journals.iucr.org/j/issues/2020/02/00/nb5257/
 
 
 Installation
@@ -35,3 +34,10 @@ Next go to the repository and try to install
 
 You will now recieve messages about dependecies that need be installed first. 
 Go through these untill the build succeeds.
+
+
+Documentation
+===============================
+Documentation is hosted seperately at `github pages`_: 
+
+.. _github pages: https://axelhenningsson.github.io/scanning-xray-diffraction/
