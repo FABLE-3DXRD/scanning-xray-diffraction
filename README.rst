@@ -16,7 +16,7 @@ underlying `publication`_:
 
 .. _publication: https://journals.iucr.org/j/issues/2020/02/00/nb5257/
 
-A preprint of describing the Gaussian Process regression procedure is also available `here`_:
+A preprint describing the Gaussian Process regression procedure is also available `here`_:
 
     *Intragranular Strain Estimation in Far-Field Scanning X-ray Diffraction using a Gaussian Processes, 
     Axel Henningsson and Johannes Hendriks. (2021). arXiv Preprint.*
@@ -25,7 +25,19 @@ A preprint of describing the Gaussian Process regression procedure is also avail
 
 Installation
 ===============================
-Only manual installation is currently supported. First get the code to your local machine by:
+Installation via pip is technically possible as
+
+.. code-block::
+
+    pip3 install s3dxrd
+
+However, ImageD11 1.9.7 is not currently available at pypi, thus this dependecy
+must be manually installed first. `Checkout the repo for how to do this`_:
+
+.. _Checkout the repo for how to do this: https://github.com/FABLE-3DXRD/ImageD11
+
+
+For manuall installation, first get the code to your local machine by:
 
 .. code-block::
 
