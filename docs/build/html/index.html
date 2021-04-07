@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Welcome to the s3dxrd project &mdash; s3dxrd 0.0.1 documentation</title>
+  <title>Welcome to the s3dxrd package &mdash; s3dxrd 0.0.1 documentation</title>
   
 
   
@@ -81,8 +81,10 @@
             
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Welcome to the s3dxrd project</a><ul>
-<li><a class="reference internal" href="#documentation">Documentation</a></li>
+<li><a class="reference internal" href="#">Welcome to the s3dxrd package</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#documentation">Documentation</a><ul>
+<li><a class="reference internal" href="#id1">Documentation</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#module-measurement.Id11">measurement</a></li>
@@ -137,7 +139,7 @@
     
       <li><a href="#" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Welcome to the s3dxrd project</li>
+      <li>Welcome to the s3dxrd package</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -158,22 +160,51 @@
             
   <div class="toctree-wrapper compound">
 </div>
-<div class="section" id="welcome-to-the-s3dxrd-project">
-<h1>Welcome to the s3dxrd project<a class="headerlink" href="#welcome-to-the-s3dxrd-project" title="Permalink to this headline">¶</a></h1>
-<p>This is a scientific code originally developed to adress scanning-3dxrd
+<div class="section" id="welcome-to-the-s3dxrd-package">
+<h1>Welcome to the s3dxrd package<a class="headerlink" href="#welcome-to-the-s3dxrd-package" title="Permalink to this headline">¶</a></h1>
+<p>This is a scientific code originally developed to adress scanning-3d-xray-diffraction (s3dxrd)
 strain measurements of polycrystalline materials.</p>
-<p>Intragranular strain is computed based on a series of line integral measurmenets. The regression procedure involves the use of a Gaussian
-Proccess which is a statistical model that uses spatial correlation assumptions to find good fits to data. The resulting strain field is
-guaranteed to be in local static equlibrium by imposing a prior constraint on the solution function sapace.</p>
-<p>If you want to use this code, it is strongly recomended that you have a look at the
-underlying <a class="reference external" href="https://www.researchgate.net/publication/349520623_Intragranular_Strain_Estimation_in_Far-Field_Scanning_X-ray_Diffraction_using_a_Gaussian_Processes">publication</a>:</p>
+<p>Intragranular strain is computed based on a series of line integral measurements. The s3dxrd package supports
+regression either by a simple weighted least squares approach or alternatively by a Gaussian Proccess. The later
+statistical model uses spatial correlation assumptions and an equlibrium prior to find good fits to data.</p>
+<p>If you want to use this code, it is strongly recomended that you have a look at <a class="reference external" href="https://journals.iucr.org/j/issues/2020/02/00/nb5257/">the underlying publication</a>:
+describing the weighted least squares approach (named “ASR” in the paper)</p>
 <blockquote>
-<div><p><em>Intragranular Strain Estimation in Far-Field Scanning X-ray
-Diffraction using a Gaussian Processes, Axel Henningsson and Johannes Hendriks,
-2021, under review for Journal of Applied Crystalography</em></p>
+<div><p><em>Reconstructing intragranular strain fields in polycrystalline materials from scanning 3DXRD data,
+Henningsson, N. A., Hall, S. A., Wright, J. P. &amp; Hektor, J. (2020). J. Appl. Cryst. 53, 314-325.</em></p>
 </div></blockquote>
+<p>A preprint describing the Gaussian Process regression procedure is also available <a class="reference external" href="https://arxiv.org/abs/2102.11018">here</a>:</p>
+<blockquote>
+<div><p><em>Intragranular Strain Estimation in Far-Field Scanning X-ray Diffraction using a Gaussian Processes,
+Axel Henningsson and Johannes Hendriks. (2021). arXiv Preprint.</em></p>
+</div></blockquote>
+<p>This paper may also help the user to understand some of the mathematical notation hinted at in the code.</p>
+</div>
+<div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>Installation via pip is technically possible as</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip3</span> <span class="n">install</span> <span class="n">s3dxrd</span>
+</pre></div>
+</div>
+<p>However, the latest ImageD11 1.9.7 is not currently available at pypi, thus this dependecy
+must be manually installed first. <a class="reference external" href="https://github.com/FABLE-3DXRD/ImageD11">Checkout the repo for how to do this</a>:</p>
+<p>For manuall installation, first get the code to your local machine by:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">AxelHenningsson</span><span class="o">/</span><span class="n">scanning</span><span class="o">-</span><span class="n">xray</span><span class="o">-</span><span class="n">diffraction</span><span class="o">.</span><span class="n">git</span>
+</pre></div>
+</div>
+<p>Next go to the repository and try to install</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">scanning</span><span class="o">-</span><span class="n">xray</span><span class="o">-</span><span class="n">diffraction</span>
+<span class="n">python</span> <span class="n">setup</span> <span class="n">build</span> <span class="n">install</span>
+</pre></div>
+</div>
+<p>You will now recieve messages about dependecies that need be installed first.
+Go through these untill the build succeeds.</p>
+</div>
 <div class="section" id="documentation">
-<h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
+<h1>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h1>
+<p>Documentation is hosted seperately at <a class="reference external" href="https://axelhenningsson.github.io/scanning-xray-diffraction/">github pages</a>:</p>
+<div class="section" id="id1">
+<h2>Documentation<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
 </div>
 </div>
 <div class="section" id="module-measurement.Id11">
