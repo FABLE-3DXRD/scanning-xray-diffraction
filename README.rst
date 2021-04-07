@@ -1,20 +1,20 @@
-Welcome to the s3dxrd project
+Welcome to the s3dxrd package
 ===============================
 
-This is a scientific code originally developed to adress scanning-3dxrd
+This is a scientific code originally developed to adress scanning-3d-xray-diffraction (s3dxrd)
 strain measurements of polycrystalline materials.
 
-Intragranular strain is computed based on a series of line integral measurements. The regression procedure involves the use of a Gaussian 
-Proccess which is a statistical model that uses spatial correlation assumptions to find good fits to data. The resulting strain field is 
-guaranteed to be in local static equlibrium by imposing a prior constraint on the solution function sapace.
+Intragranular strain is computed based on a series of line integral measurements. The s3dxrd package supports
+regression either by a simple weighted least squares approach or alternatively by a Gaussian Proccess. The later
+statistical model uses spatial correlation assumptions and an equlibrium prior to find good fits to data.
 
-If you want to use this code, it is strongly recomended that you have a look at the
-underlying `publication`_:
+If you want to use this code, it is strongly recomended that you have a look at `the underlying publication`_: 
+describing the weighted least squares approach (named "ASR" in the paper)
 
     *Reconstructing intragranular strain fields in polycrystalline materials from scanning 3DXRD data, 
     Henningsson, N. A., Hall, S. A., Wright, J. P. & Hektor, J. (2020). J. Appl. Cryst. 53, 314-325.*
 
-.. _publication: https://journals.iucr.org/j/issues/2020/02/00/nb5257/
+.. _the underlying publication: https://journals.iucr.org/j/issues/2020/02/00/nb5257/
 
 A preprint describing the Gaussian Process regression procedure is also available `here`_:
 
@@ -22,6 +22,8 @@ A preprint describing the Gaussian Process regression procedure is also availabl
     Axel Henningsson and Johannes Hendriks. (2021). arXiv Preprint.*
 
 .. _here: https://arxiv.org/abs/2102.11018
+
+This paper may also help the user to understand some of the mathematical notation hinted at in the code.
 
 Installation
 ===============================
@@ -31,11 +33,10 @@ Installation via pip is technically possible as
 
     pip3 install s3dxrd
 
-However, ImageD11 1.9.7 is not currently available at pypi, thus this dependecy
+However, the latest ImageD11 1.9.7 is not currently available at pypi, thus this dependecy
 must be manually installed first. `Checkout the repo for how to do this`_:
 
 .. _Checkout the repo for how to do this: https://github.com/FABLE-3DXRD/ImageD11
-
 
 For manuall installation, first get the code to your local machine by:
 
