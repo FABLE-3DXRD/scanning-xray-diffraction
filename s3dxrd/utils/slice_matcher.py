@@ -50,6 +50,7 @@ def match_and_label( pixelated_grains, id11_grains, angthres=3.0 ):
             if np.sum( overlap ) > 0:
                 indices = np.unique(sample[overlap,i-1])
                 for indx in indices[indices!=0]:
+
                     u1 = grains[str(indx)][str(i-1)].u
                     u2 = id11_grains[i][j].u
                     angdiff = np.sum( [ np.degrees( np.arccos(u1[:,k].dot(u2[:,k])) ) for k in range(3) ] )

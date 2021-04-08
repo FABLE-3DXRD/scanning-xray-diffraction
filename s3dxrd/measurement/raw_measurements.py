@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ImageD11 import columnfile, parameters, grain
 from s3dxrd.utils import peak_mapper, reconstruct_grainshapes
+from xfab import tools
 
 class RawMeasurements(object):
     """Container of semi-raw diffraction data and grain properties.
@@ -74,6 +75,11 @@ class RawMeasurements(object):
         """
         self.zpos = zpos
         self.grain_slices = [ grain.read_grain_file( ubip ) for ubip in ubi_paths ]
+
+        for grs in self.grain_slices:
+            for gr in grs:
+                gr.u = tools.ubi_to_u( gr.ubi )
+
         self.peak_stack = [columnfile.columnfile(flt) for flt in flt_paths]
         self.tot_nbr_peaks = sum( [peaks.nrows for peaks in self.peak_stack] )
         self.params = parameters.read_par_file( param_path )
