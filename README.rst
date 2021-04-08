@@ -49,7 +49,7 @@ Next go to the repository and try to install
 .. code-block::
 
     cd scanning-xray-diffraction
-    python setup build install
+    python setup.py build install
 
 You will now recieve messages about dependecies that need be installed first. 
 Go through these untill the build succeeds.
