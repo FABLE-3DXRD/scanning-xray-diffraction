@@ -8,13 +8,13 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="s3dxrd",
-    version="0.0.5",
+    version="0.0.6",
     author="Axel Henningsson",
     author_email="nilsaxelhenningsson@gmail.com",
     description="Tools for intragranular strain estimation with s3dxrd data.",
     long_description=long_description,
     long_description_content_type="text/x-rst",
-    url="https://bitbucket.org/Axiomel/gp-xrd/src/multigrain/",
+    url="https://github.com/AxelHenningsson/scanning-xray-diffraction",
     project_urls={
         "Documentation": "https://bitbucket.org/Axiomel/gp-xrd/src/multigrain/",
     },
