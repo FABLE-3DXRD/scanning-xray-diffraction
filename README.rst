@@ -27,16 +27,11 @@ This paper may also help the user to understand some of the mathematical notatio
 
 Installation
 ===============================
-Installation via pip is technically possible as
+Installation via pip is available as
 
 .. code-block::
 
     pip3 install s3dxrd
-
-However, the latest ImageD11 1.9.7 is not currently available at pypi, thus this dependecy
-must be manually installed first. `Checkout the repo for how to do this`_:
-
-.. _Checkout the repo for how to do this: https://github.com/FABLE-3DXRD/ImageD11
 
 For manuall installation, first get the code to your local machine by:
 

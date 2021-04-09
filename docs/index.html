@@ -83,10 +83,7 @@
               <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">Welcome to the s3dxrd package</a></li>
 <li><a class="reference internal" href="#installation">Installation</a></li>
-<li><a class="reference internal" href="#documentation">Documentation</a><ul>
-<li><a class="reference internal" href="#id1">Documentation</a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#documentation">Documentation</a></li>
 <li><a class="reference internal" href="#module-measurement.Id11">measurement</a></li>
 <li><a class="reference internal" href="#module-regression.bayesian">regression</a></li>
 <li><a class="reference internal" href="#module-utils.mesher">utils</a></li>
@@ -182,19 +179,17 @@ Axel Henningsson and Johannes Hendriks. (2021). arXiv Preprint.</em></p>
 </div>
 <div class="section" id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
-<p>Installation via pip is technically possible as</p>
+<p>Installation via pip is available as</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">pip3</span> <span class="n">install</span> <span class="n">s3dxrd</span>
 </pre></div>
 </div>
-<p>However, the latest ImageD11 1.9.7 is not currently available at pypi, thus this dependecy
-must be manually installed first. <a class="reference external" href="https://github.com/FABLE-3DXRD/ImageD11">Checkout the repo for how to do this</a>:</p>
 <p>For manuall installation, first get the code to your local machine by:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">AxelHenningsson</span><span class="o">/</span><span class="n">scanning</span><span class="o">-</span><span class="n">xray</span><span class="o">-</span><span class="n">diffraction</span><span class="o">.</span><span class="n">git</span>
 </pre></div>
 </div>
 <p>Next go to the repository and try to install</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cd</span> <span class="n">scanning</span><span class="o">-</span><span class="n">xray</span><span class="o">-</span><span class="n">diffraction</span>
-<span class="n">python</span> <span class="n">setup</span> <span class="n">build</span> <span class="n">install</span>
+<span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="n">build</span> <span class="n">install</span>
 </pre></div>
 </div>
 <p>You will now recieve messages about dependecies that need be installed first.
@@ -203,9 +198,6 @@ Go through these untill the build succeeds.</p>
 <div class="section" id="documentation">
 <h1>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h1>
 <p>Documentation is hosted seperately at <a class="reference external" href="https://axelhenningsson.github.io/scanning-xray-diffraction/">github pages</a>:</p>
-<div class="section" id="id1">
-<h2>Documentation<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
-</div>
 </div>
 <div class="section" id="module-measurement.Id11">
 <span id="measurement"></span><h1>measurement<a class="headerlink" href="#module-measurement.Id11" title="Permalink to this headline">¶</a></h1>
