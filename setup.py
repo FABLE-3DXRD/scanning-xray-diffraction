@@ -3,12 +3,9 @@ import setuptools
 with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    install_requires = [ line for line in fh.readlines() ]
-
 setuptools.setup(
     name="s3dxrd",
-    version="0.0.7",
+    version="0.0.8",
     author="Axel Henningsson",
     author_email="nilsaxelhenningsson@gmail.com",
     description="Tools for intragranular strain estimation with s3dxrd data.",
@@ -25,5 +22,17 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(),
     python_requires=">=3.6",
-    install_requires= install_requires
+    install_requires= [ "numpy>=1.20.0",
+                        "scipy",
+                        "scikit-image>=0.17.2",
+                        "torch>=1.6.0",
+                        "h5py",
+                        "matplotlib",
+                        "numba>=0.53.1",
+                        "rasterio>=1.1.6",
+                        "Shapely>=1.7.0",
+                        "pyevtk>=1.1.2",
+                        "xfab>=0.0.4",
+                        "fabio>=0.10.2",
+                        "ImageD11>=1.9.7" ]
 )
