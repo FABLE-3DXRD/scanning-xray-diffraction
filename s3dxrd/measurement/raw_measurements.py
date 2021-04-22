@@ -20,12 +20,12 @@ class RawMeasurements(object):
         https://doi.org/10.1107/S1600576720001016
 
     Attributes:
-        zpos (list of float): Sample z-translations corresponding to grain_slices
+        zpos (:obj:`list` of :obj:`float`): Sample z-translations corresponding to grain_slices
             indices and peak_stack indices.
-        grain_slices (list of lists of :obj:`grain`): Loaded ImageD11 grain '.map'
+        grain_slices (:obj:`list` of :obj:`lists` of :obj:`grain`): Loaded ImageD11 grain '.map'
             or '.ubi' files. Each z-translation has a list of grains present in
             the slice. The map files are loaded via the ImageD11 grain module.
-        peak_stack (list of :obj:`columnfile`): Loaded ImageD11 peak files. Each
+        peak_stack (:obj:`list` of :obj:`columnfile`): Loaded ImageD11 peak files. Each
             instance of the peak stack list contains a columnfile describing
             diffraction peaks originating from correpsonding z-translation. The 
             peak files are loaded via the ImageD11 columnfile module.
@@ -33,21 +33,21 @@ class RawMeasurements(object):
             gives access to meta parameters of the experiment, such as detector tilt,
             sample to detector distance, and crystal cell parameters. The parameter
             file is loaded via the ImageD11 parameters module.
-        omegastep (float): Rotation stage readout intervall in degrees. Each recorded
+        omegastep (:obj:`float`): Rotation stage readout intervall in degrees. Each recorded
             frame in the experiment is was integrated over this intervall.
-        ystep (float): y-translation stepsize between measurements. Normally the same
+        ystep (:obj:`float`): y-translation stepsize between measurements. Normally the same
             as the beamsize.
-        number_y_scans (float): The number of scanned y-positions made in each z-layer.
-        ymin (float): Minium y-coordinate seen by the detector. These values differ from
+        number_y_scans (:obj:`float`): The number of scanned y-positions made in each z-layer.
+        ymin (:obj:`float`): Minium y-coordinate seen by the detector. These values differ from
             what is in the orginal columnfile in the case when the columnfile do not have
             a symmetric scanning intervall over y=0.
-        ymax (float): Maximum y-coordinate seen by the detector. These values differ from
+        ymax (:obj:`float`): Maximum y-coordinate seen by the detector. These values differ from
             what is in the orginal columnfile in the case when the columnfile do not have
             a symmetric scanning intervall over y=0.
-        grain_topology_mask (list of 2D numpy arrays): Grain topology in binarized form.
-            Each instacne of the list contains the grain shape at the corresponding
-            z-slice. This attribute starts as None, and is set as an result of an active
-            action.
+        grain_topology_mask (:obj:`list` of :obj:`lists` of :obj:`numpy arrays`): Grain topology in binarized form.
+            Each instance of the list contains all grain shapes at the corresponding z-slice, s.t  
+            ```grain_topology_mask[i][j]``` gives the 2d numpy binarized array that corresponds to grain number 
+            j in z-slice number i.
     """
 
     def __init__(self, 

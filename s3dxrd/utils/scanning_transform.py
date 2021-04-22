@@ -274,19 +274,6 @@ def compute_grain_origins(omega, wedge=0.0, chi=0.0,
     t[1, :] = t_y
     t[2, :] = t_z
     
-    # import matplotlib.pyplot as plt
-    # plt.plot(t_x, t_y, "bo")
-    # plt.plot(np.cos(om_r) * t_x - np.sin(om_r) * t_y, np.sin(om_r) * t_x + np.cos(om_r) * t_y, "ro")
-    # plt.xlim([-600,600])
-    # plt.ylim([-600,600])
-    # plt.show()
-
-    #old code:
-    #t[0, :] = np.cos(om_r) * t_x - np.sin(om_r) * t_y
-    #t[1, :] = np.sin(om_r) * t_x + np.cos(om_r) * t_y
-    #t[2, :] = t_z
-    #---------------------------------------------------
-
 
     if chi != 0.0:
         c = np.cos(np.radians(chi))

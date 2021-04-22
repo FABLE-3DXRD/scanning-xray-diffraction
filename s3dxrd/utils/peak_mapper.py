@@ -19,48 +19,18 @@ def map_peaks( flt, grains, params, omegastep, hkltol, nmedian, ymin, ystep, num
     for i,gr in enumerate(grains):
         init_assigned_peaks += np.sum(gr.mask)
 
-    # Simple version
-    #---------------------------------------------------------------------
-    itr=0                   # current iteration number
-
     x = np.zeros((len(grains,)))        # current grain centroid x xoordinates
     y = np.zeros((len(grains,)))        # current grain centroid y coordinates
     assigned_peaks = 0
     prev_assigned_peaks = 0
 
-    # Keep iterating until the change in assigned peaks   
-    # is less than 1% of the total measured peak number.
-    #while( itr<3 or (assigned_peaks-prev_assigned_peaks)>(flt.nrows/100.) ):
     for j in range(2):
 
         # Compute current grain centroids and assign peaks
         for i,gr in enumerate(grains):
 
-            # Old code for cms computation
-            # cs[i], x[i], y[i] = grain_fitter.get_grain_cms(gr, flt)
-            # origin = [ x[i],y[i] ]
-
             # Grain centroids can be computed based on the sinogram.
             _, gr.sino, gr.recon = reconstruct_grainshapes.FBP_grain( gr, flt, ymin, ystep, omegastep, number_y_scans )
-
-            if 0:
-                cx = np.sum( gr.recon.T*np.arange(0, gr.recon.shape[0], 1.) ) / np.sum(gr.recon)
-                cy = np.sum( gr.recon*np.arange(0, gr.recon.shape[1], 1.)   ) / np.sum(gr.recon)
-                x[i] =   - ystep*( cx - gr.recon.shape[0]//2)
-                y[i] =     ystep*( cy - gr.recon.shape[1]//2)
-
-                fig,ax = plt.subplots(1,2,figsize=(11,7))
-                ax[0].imshow(gr.recon)
-                
-                ax[0].plot(cy, cx,'ro')
-                ax[0].plot(y[i]/ystep + gr.recon.shape[1]//2, -x[i]/ystep + gr.recon.shape[0]//2, 'bo')
-
-                ax[1].imshow(gr.sino)
-                ax[1].set_ylabel("y [units of pixels, and origin translated]")
-                ax[0].set_xlabel("y [units of pixels, and origin translated]")
-                ax[0].set_ylabel("x [units of pixels, and origin translated]")
-                plt.show()
-            ##################################################
 
             tth, eta, gve = grain_fitter.get_peak_quantities( flt, params, gr )
             assign_peaks_to_grain( gr, gve, flt, params, nmedian,  hkltol )
@@ -69,8 +39,7 @@ def map_peaks( flt, grains, params, omegastep, hkltol, nmedian, ymin, ystep, num
         # Update grain ubi based on the newly assigned peak sets
         for i,gr in enumerate(grains):
             grain_fitter.fit_one_grain( gr, flt, params )
-        itr += 1
-    #---------------------------------------------------------------------
+
     tth, eta, gve = update_cols_per_grain( flt, params, omslop, grains )
 
 def initiate_cols( flt, pars, OMSLOP, weights=True  ):
