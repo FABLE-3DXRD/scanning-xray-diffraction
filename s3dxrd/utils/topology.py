@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import shapely.geometry
 from scipy.ndimage.morphology import binary_dilation
+from scipy.ndimage import label
 
 def voxels_to_polygon( image_stack, pixel_size, center=(0.5,0.5) ):
     '''Take a stack of images and produce a stack of shapely polygons.
@@ -25,9 +26,25 @@ def voxels_to_polygon( image_stack, pixel_size, center=(0.5,0.5) ):
     polygon_stack = [pixels_to_polygon(image, pixel_size, center) for image in image_stack]
     return polygon_stack
 
+def check_input(image):
+    """Check that the provided image consists of a single connected domain of pixels.
+    """
+    # Check that the input image has no floating pixels.
+    labeled_array, num_features = label(image.astype(int)+1)
+    assert num_features==1, "The input image must contain a single solid domain of connected pixels but it appears to have  floating pixels"
+    #
+
+    # Check that the input image has no holes.
+    s = np.sum( np.abs(image.astype(int)[1:,:]-image.astype(int)[0:-1,:]), axis=0 )
+    assert np.alltrue( s <= 2 ), "The input image must contain a single solid domain of connected pixels but it appears to have holes"
+    #
+
 def pixels_to_polygon( image, pixel_size, center=(0.5,0.5) ):
     '''Take a single image and produce a shapely polygon.
     '''
+
+    check_input(image)
+
     expanded_image = expand_image(image, factor=3)
     indices = get_image_boundary_index( expanded_image )
     coordinates = indices_to_coordinates(indices, pixel_size/3., center, expanded_image)
@@ -46,7 +63,6 @@ def expand_image(image, factor):
 def get_image_boundary_index( image ):
     '''Find the pixel indices of the boundary pixels of a binary image.
     '''
-
     boundary_image = get_boundary_image( image )
 
     bound_indx = np.where( boundary_image==1 )

@@ -10,7 +10,7 @@ from s3dxrd.utils import save
 import pickle
 from s3dxrd.utils import slice_matcher
 from xfab import tools
-from scipy.ndimage.morphology import binary_opening
+from scipy.ndimage.morphology import binary_opening, binary_closing
 
 #TODO: Split this function into parts:
     # I)   Peak grain mapping + shape reconstruction.
@@ -31,6 +31,7 @@ def peaks_to_vectors(flt_paths,
                     nmedian = 5,
                     rcut = 0.2,
                     save_path=None ):
+    
     """Convert an x-ray diffraction dataset saved in the ImageD11 format to vector format
     
     Based on an inital guess of ubi matrices all data contained in a sereis of Id11 peak files
@@ -91,7 +92,7 @@ def peaks_to_vectors(flt_paths,
             **labeled_grains** (:obj:`dict` of :obj:`dict` of :obj:`ImageD11 Grain`): Id11 grain for each grain slice in polygons.
 
     """
-
+    
     print('Initiating data conversion from Id11 format to gpxrd format...')
     rm = raw_measurements.RawMeasurements(flt_paths, zpos, param_path, ubi_paths, omegastep, ymin, ymax, ystep)
 
@@ -101,11 +102,11 @@ def peaks_to_vectors(flt_paths,
     print('Reconstructing grain topologies...')
     rm.reconstruct_grain_topology( rcut )
 
-    # Cleanup the recons from floating pixels.
-    
+    # Cleanup the recons from floating pixels and holes.
     for i in range(len(rm.grain_topology_mask)):
         for j in range(len(rm.grain_topology_mask[i])):
             rm.grain_topology_mask[i][j] = binary_opening(rm.grain_topology_mask[i][j], structure=np.ones((3,3)))
+            rm.grain_topology_mask[i][j] = binary_closing(rm.grain_topology_mask[i][j], structure=np.ones((3,3)))
 
     # Cross slice mapping of grains, giving each grain a unique label so it can be tracked across z-slices.
     print('Cross slice mapping grains...')

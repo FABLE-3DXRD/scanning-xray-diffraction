@@ -146,10 +146,10 @@ def get_cms_along_beam( recon, omega, dty, ymin, ystep, stepsize=0.5 ):
         rotated.append( warp(image, R, clip=False) )
 
     # Map to closest rotated reconstruction.
-    cmsx = np.zeros((len(omega),))
+    cms = [np.dot( rot.T, cms_weights  ) / np.sum( rot, axis=0 ) for rot in rotated]
     iy = np.round( (dty - ymin) / ystep ).astype(int)
-    for i,(om,yindx) in enumerate(zip(omega,iy)):
-        indx  = np.argmin( np.abs( angles-om ) )
-        cmsx[i] = ( (np.sum( rotated[indx][:,yindx]*cms_weights  ) / np.sum( rotated[indx][:,yindx] )) - center ) * ystep
+    iom = np.round( (omega - angles[0]) / stepsize ).astype(int)
+    cmsx = [cms[omindx][yindx] for i,(omindx,yindx) in enumerate(zip(iom,iy))]
+    cmsx = ( np.array(cmsx) - center ) * ystep
 
     return cmsx

@@ -9,6 +9,7 @@ from . import reconstruct_grainshapes
 
 def map_peaks( flt, grains, params, omegastep, hkltol, nmedian, ymin, ystep, number_y_scans ):
     omslop = omegastep/2.
+    
     tth, eta, gve = initiate_cols( flt, params, omslop )
 
     for i,gr in enumerate(grains):
@@ -24,6 +25,7 @@ def map_peaks( flt, grains, params, omegastep, hkltol, nmedian, ymin, ystep, num
     assigned_peaks = 0
     prev_assigned_peaks = 0
 
+    
     for j in range(2):
 
         # Compute current grain centroids and assign peaks
@@ -118,6 +120,7 @@ def assign_peaks_to_grain( gr, gve, flt, pars, nmedian, hkltol):
     drlv = hkli - hkl
     drlv2 = (drlv*drlv).sum(axis=0)
     # Tolerance to assign to a grain is rather poor
+
     gr.mask = drlv2 < hkltol*hkltol # g.mask is a boolean declaration of all peaks that can belong to grain g
 
 def discard_overlaping_spots( grains, gve, flt, pars, nmedian, hkltol ):

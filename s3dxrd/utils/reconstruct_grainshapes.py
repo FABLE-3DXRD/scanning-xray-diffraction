@@ -78,8 +78,93 @@ def FBP_grain( g, flt, ymin, ystep, omegastep, number_y_scans ):
     theta = np.linspace( angular_bin_size/2., 180. - angular_bin_size/2., sinogram.shape[1] )
     back_projection = iradon( sinogram, theta=theta, output_size=number_y_scans, circle=True )
 
+    if 0:
+        fig,ax = plt.subplots(1,2, figsize=(15,5))
+        im = ax[0].imshow(sinogram,aspect="auto")
+        ax[0].set_title("Sinogram")
+        ax[0].set_xlabel(r"$\omega$ bins ["+str(np.round(angular_bin_size,3))+r"$^o$]")
+        ax[0].set_ylabel(r"$\Delta y$ index (step="+str(ystep)+r"$\mu$ m)")
+        fig.colorbar(im,ax=ax[0])
+        im = ax[1].imshow(back_projection,aspect="equal")
+        fig.colorbar(im,ax=ax[1])
+        ax[1].set_title("Backprojection")
+        plt.show()
 
     return [], sinogram, back_projection 
+
+# def FBP_grain( g, flt, ymin, ystep, omegastep, number_y_scans ):
+#     """
+#     Reconstruct a 2d grain shape from diffraction data using Filtered-Back-projection.
+#     """
+
+#     # Measured relevant data for the considered grain
+#     omega = flt.omega[ g.mask ].copy()
+#     dty = flt.dty[g.mask].copy()
+#     sum_intensity = flt.sum_intensity[g.mask].copy()
+
+#     if np.min(omega)<0 and np.max(omega)>0:
+#         # Case 1: -180 to 180 rotation and positive y-scans we make
+#         # a transformation back into omega=[0 180] in three steps:
+
+#         # (I) Half the intensity for peaks entering the sinogram twice.
+#         doublets_mask = dty<=np.abs(np.min(dty))
+#         sum_intensity[doublets_mask] = sum_intensity[doublets_mask]*(1/2)
+
+#         # (II) Map the negative omega values back to positive values, [0 180]
+#         omega_mask = omega < 0
+#         omega[omega_mask] = omega[omega_mask] + 180
+
+#         # (III) Flip the sign of the y-scan coordinates with negative omega values.
+#         dty[omega_mask]   = -dty[omega_mask]
+
+#     elif np.min(omega)>=0 and np.max(omega)<=180:
+#         # Case 2: 0 to 180 rotation and both negative and positive y-scans
+#         # nothing needs be done since this is the standrad tomography case
+#         pass
+#     else:
+#         raise ValueError("Scan configuration not implemented. omega=0,180 scans with positive and \
+#                           negative y-translations and omega=-180,180 scans with all positive      \
+#                           y-translations are supported.")
+
+#     keys = np.array([ g.hkl[0], g.hkl[1], g.hkl[2], g.etasigns ]).T
+#     unique_reflections = np.unique(keys,axis=0)
+#     number_of_reflections = len(unique_reflections)
+#     sinogram = np.zeros( ( number_y_scans, number_of_reflections ), np.float )
+#     angles = np.zeros( ( number_of_reflections, ), np.float )
+#     for reflection_index,reflection in enumerate( unique_reflections ):
+#         # h==h, k==k, l==l, eta sign==eta sign
+#         mask = (keys == reflection).astype(int).sum(axis=1) == 4
+#         for y,om,I in zip(dty[mask],omega[mask],sum_intensity[mask]):
+#             dty_index   = np.round( (y - ymin) / ystep ).astype(int)
+#             sinogram[dty_index, reflection_index] += I
+#         angles[reflection_index] = np.mean(omega[mask])
+
+#     # Sort sinogram in increasing angular order.
+#     indx = np.argsort(angles)
+#     angles = angles[indx]
+#     sinogram = sinogram[:,indx]
+
+#     # Normalise the sinogram to account for the intensity not being proportional
+#     # only to density but also to eta and theta and a lot of other stuff.
+#     normfactor = sinogram.max(axis=0)
+#     normfactor[normfactor==0]=1.0
+#     sinogram = sinogram/normfactor
+
+#     # Perform reconstruction by inverse radon transform of the sinogram
+#     back_projection = iradon( sinogram, theta=angles, output_size=number_y_scans, circle=True )
+
+#     print(angles)
+#     fig,ax = plt.subplots(1,2, figsize=(15,5))
+#     im = ax[0].imshow(sinogram,aspect="auto")
+#     ax[0].set_title("Sinogram")
+#     ax[0].set_xlabel("Unique hkl reflections by increasing omega")
+#     ax[0].set_ylabel("dty index (step="+str(ystep)+r"$\mu$ m)")
+#     fig.colorbar(im,ax=ax[0])
+#     im = ax[1].imshow(back_projection,aspect="equal")
+#     fig.colorbar(im,ax=ax[1])
+#     ax[1].set_title("Backprojection")
+#     plt.show()
+#     return [], sinogram, back_projection 
 
 def update_grainshapes( grain_recons, grain_masks):
     '''
