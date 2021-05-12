@@ -32,7 +32,7 @@ mesh = mesh_from_polygon(ystep, vectors["polygons"]["1"]["7"])
 
 # and mask out the relevant meaurements by grain index and z-position.
 mask = (vectors["measurement_grain_map"]==1)*(vectors["entry"][2,:]==zpos[7]) 
-t
+
 # Next we call the regression code passing along only the masked out measurements.
 wlsq_strain = trust_constr_solve( mesh, vectors["kappa"][:,mask], vectors["Y"][mask], 
                                   vectors["entry"][:,mask], vectors["exit"][:,mask], 
