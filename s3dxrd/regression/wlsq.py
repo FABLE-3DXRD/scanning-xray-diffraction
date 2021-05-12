@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from shapely.geometry import Polygon as shapelyPolygon
 from scipy.optimize import minimize
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, diags
 from scipy.optimize import LinearConstraint
 
 def _get_A_matrix_row( centroids, polymesh, n, N, entry, exit, nhat, beam_width ):
@@ -60,7 +60,7 @@ def _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose  ):
     M = directions.shape[1] # number of measurements
     N = mesh.shape[0] # number of elements
 
-    A = np.zeros((M,6*N))
+    row_indx, col_indx, data = [],[],[]
     polymesh = [shapelyPolygon([(e[0], e[1]), (e[2], e[3]), (e[4], e[5]), (e[6], e[7])]) for e in mesh]
     centroids = np.array( [ np.mean(mesh[:,0::2],axis=1), np.mean(mesh[:,1::2],axis=1)] ).T
 
@@ -77,14 +77,17 @@ def _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose  ):
             bad_equations.append(k)
             count+=1
         else:
-            A[k,:] = row
+            ci = list(np.where(row!=0)[0])
+            col_indx.extend( ci )
+            row_indx.extend( [k]*len(ci) )
+            data.extend( row[ci] )
     if verbose:
         print("")
-        print("Rank of A: "+str(np.linalg.matrix_rank(A)) )
         print("Total number of eqs: "+str( M) )
         print("Topology cutoff lead to "+str( 100.*count/float(M) )+" percent eqs to be unusuable")
         print("")
-    return A, bad_equations
+
+    return csr_matrix((data, (row_indx, col_indx)), shape=(M,N*6)), bad_equations
 
 def _constraints(mesh, low_bound, high_bound):
     """
@@ -176,7 +179,10 @@ def trust_constr_solve( mesh,
 
     A, bad_equations = _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose )
 
-    A = np.delete(A, bad_equations, axis=0)
+    mask = np.ones(A.shape[0], dtype=bool)
+    mask[bad_equations] = False
+    A = A[mask]
+
     strains = np.delete(strains, bad_equations, axis=0)
     weights = np.delete(weights, bad_equations, axis=0)
 
@@ -194,18 +200,13 @@ def trust_constr_solve( mesh,
             print( out.format( state.nit, np.round(state.fun,9), np.max(np.abs(c.dot(xk))) ) )
         return state.nit==maxiter
 
-    W = np.diag( weights )
-    WA = np.dot(W,A)
+    W = diags(weights)
     m = strains
-    Wm = np.dot(W,m)
-    WATWA = np.dot( WA.T, WA )
-    WATWm = np.dot( WA.T, Wm )
-    
-    def func( x ): return 0.5*np.linalg.norm( (np.dot( WA, x ) - Wm) )**2
-    def jac( x ): return ( np.dot(WATWA,x) - WATWm )
-    def hess( x ): return WATWA
 
-    res = minimize(func, x0, method="trust-constr", jac=jac, hess=hess,\
+    def func( x ): return 0.5*np.linalg.norm( (W.dot( A.dot(x) ) - W.dot( m )) )**2
+    def jac( x ): return A.T.dot( W.T.dot( W.dot( A.dot(x) ) - W.dot( m ) ) )
+    
+    res = minimize(func, x0, method="trust-constr", jac=jac, \
                     callback=callback, tol=1e-8, \
                     constraints=[linear_constraint],\
                     options={"disp": verbose, "maxiter":maxiter})
