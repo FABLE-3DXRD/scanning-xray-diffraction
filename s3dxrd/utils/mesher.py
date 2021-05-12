@@ -38,17 +38,21 @@ def mesh_to_pixels( mesh, element_width, shape, values ):
     Args:
         mesh (:obj:`numpy array`): Element nodal coordinates
         element_width (:obj:`float`): Element side length.
-        shape  (:obj:`tuple`): Output array shape
+        shape  (:obj:`tuple`): Desired output array shape, (always uses odd shape)
         values (:obj:`numpy array`): Per elemetn values to fill the output array with.
 
     Returns:
         (:obj:`numpy array`) Pixelated map of input field stored in values.
 
     """
+
+    s1,s2 = shape
+    if s1%2==0: s1 +=1
+    if s2%2==0: s2 +=1
     mask = np.full(shape, np.nan)
     for i,(xc,yc) in enumerate(zip( np.mean(mesh[:,0::2],axis=1), np.mean(mesh[:,1::2],axis=1) )):
-        xindx =  -np.ceil( -xc/element_width ).astype(int) + shape[0]//2
-        yindx =   np.ceil( yc/element_width ).astype(int) + shape[1]//2
+        xindx =   np.round( xc/element_width ).astype(int) + s1//2
+        yindx =   np.round( yc/element_width ).astype(int) + s2//2
         mask[yindx,xindx] = values[i]
     return mask
 
