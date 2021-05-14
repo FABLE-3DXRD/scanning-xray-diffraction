@@ -558,7 +558,7 @@ follows the <code class="xref py py-obj docutils literal notranslate"><span clas
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>mesh</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy</span> <span class="pre">array</span></code>) – Element nodal coordinates</p></li>
 <li><p><strong>element_width</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>) – Element side length.</p></li>
-<li><p><strong>shape</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code>) – Output array shape</p></li>
+<li><p><strong>shape</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">tuple</span></code>) – Desired output array shape, (always uses odd shape)</p></li>
 <li><p><strong>values</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy</span> <span class="pre">array</span></code>) – Per elemetn values to fill the output array with.</p></li>
 </ul>
 </dd>
@@ -597,6 +597,26 @@ will also be the default titles in paraview.</p></li>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>(<code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="utils.save.mesh2voxels">
+<code class="sig-prename descclassname"><span class="pre">utils.save.</span></code><code class="sig-name descname"><span class="pre">mesh2voxels</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mesh</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zpos</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#utils.save.mesh2voxels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save arrays as fields that are paraview compatible (vtk files).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">string</span></code>) – Asolute path to save the output at ending with desired filename.</p></li>
+<li><p><strong>mesh</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy</span> <span class="pre">array</span></code>) – Series of 2d x-y element mesh coordinate arrays.</p></li>
+<li><p><strong>zpos</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">float</span></code>) – z-cordinates of each of the meshes in ´´´mesh´´´.</p></li>
+<li><p><strong>values</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy</span> <span class="pre">array</span></code>) – For each mesh this list contains
+a list for each tensor component and each mesh element. I.e values[i][j][k] gives the
+value associated to the k:th element in the mesh[i] for the tensor component j.</p></li>
+<li><p><strong>names</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">string</span></code>) – Names of the tensor component arrays refered to by
+paraview. These will also be the default titles in paraview.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
