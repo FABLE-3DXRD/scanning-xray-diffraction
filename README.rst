@@ -16,12 +16,12 @@ describing the weighted least squares approach (named "ASR" in the paper)
 
 .. _the underlying publication: https://journals.iucr.org/j/issues/2020/02/00/nb5257/
 
-A preprint describing the Gaussian Process regression procedure is also available `here`_:
+The paper describing the Gaussian Process regression procedure is also available `here`_:
 
     *Intragranular Strain Estimation in Far-Field Scanning X-ray Diffraction using a Gaussian Processes, 
-    Axel Henningsson and Johannes Hendriks. (2021). arXiv Preprint.*
+    Henningsson, A. & Hendriks, J. (2021). J. Appl. Cryst. 54.*
 
-.. _here: https://arxiv.org/abs/2102.11018
+.. _here: https://journals.iucr.org/j/issues/2021/04/00/nb5298/
 
 This paper may also help the user to understand some of the mathematical notation hinted at in the code.
 
