@@ -54,4 +54,4 @@ Documentation
 ===============================
 Documentation is hosted seperately at `github pages`_: 
 
-.. _github pages: https://axelhenningsson.github.io/scanning-xray-diffraction/
+.. _github pages: https://fable-3dxrd.github.io/scanning-xray-diffraction/
