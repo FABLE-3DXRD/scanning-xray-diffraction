@@ -90,7 +90,7 @@ def _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose, np
                         np.array_split(nhat, nprocs, axis=1))
     args = []
     for k, (d, en ,ex, n) in enumerate(split_arrays):
-        rows_to_build = range(k*d.shape[1], d.shape[1])
+        rows_to_build = list(range(k*d.shape[1], (k+1)*d.shape[1]))
         args.append( (centroids, polymesh, N, beam_width, rows_to_build, d, en ,ex, n) )
 
     with Pool(nprocs) as p:
