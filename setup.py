@@ -29,7 +29,6 @@ setuptools.setup(
                         "h5py",
                         "matplotlib",
                         "numba>=0.53.1",
-                        "rasterio>=1.1.6",
                         "Shapely>=1.7.0",
                         "pyevtk>=1.1.2",
                         "xfab>=0.0.4",

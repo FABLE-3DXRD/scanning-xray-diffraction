@@ -5,9 +5,10 @@ from shapely.geometry import Polygon as shapelyPolygon
 from scipy.optimize import minimize
 from scipy.sparse import csr_matrix, diags
 from scipy.optimize import LinearConstraint
+from multiprocessing import Pool
 
 def _get_A_matrix_row( centroids, polymesh, n, N, entry, exit, nhat, beam_width ):
-    
+
     zhat = np.array([0, 0, 1])
     that = np.cross( nhat, zhat )
     a = entry[0:3]  - nhat*len(polymesh)*beam_width + that*(beam_width/2.)
@@ -15,7 +16,7 @@ def _get_A_matrix_row( centroids, polymesh, n, N, entry, exit, nhat, beam_width 
     c = entry[0:3]  + nhat*len(polymesh)*beam_width - that*(beam_width/2.)
     d = entry[0:3]  + nhat*len(polymesh)*beam_width + that*(beam_width/2.)
     polybeam = shapelyPolygon([(a[0], a[1]), (b[0], b[1]), (c[0], c[1]), (d[0], d[1])])
-    
+
     ts    = nhat[0:2].dot( (centroids - entry[0:2]).T )
     nn = nhat[0:2].reshape(2,1)
     en = entry[0:2].reshape(2,)
@@ -23,7 +24,7 @@ def _get_A_matrix_row( centroids, polymesh, n, N, entry, exit, nhat, beam_width 
     mask = dist < beam_width*(1+np.sqrt(2))/2.
     areas = _compute_intersection_areas( polymesh, polybeam, mask, plot=False )
 
-    if np.sum(areas)==0: 
+    if np.sum(areas)==0:
         return None
     else:
         return np.repeat(areas,6)*_directional_weights(n, N)/np.sum(areas)
@@ -36,7 +37,7 @@ def _compute_intersection_areas( polymesh, polybeam, mask, plot=False ):
 
         if mask[i]:
             intersection_areas[i] = polybeam.intersection(poly_elm).area
-        
+
         if plot:
             print("mask[i]",mask[i])
             plt.plot(polybeam.exterior.xy[0],polybeam.exterior.xy[1])
@@ -55,8 +56,22 @@ def _directional_weights( n, N ):
     """
     return np.array( [ n[0]*n[0], n[1]*n[1], n[2]*n[2], 2*n[1]*n[2], 2*n[0]*n[2], 2*n[0]*n[1] ]*N )
 
+def build_part_of_matrix(args):
+    centroids, polymesh, N, beam_width, rows_to_build, d, en ,ex, n = args
+    row_indx, col_indx, data, bad_equations = [],[],[],[]
 
-def _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose  ):
+    for i,k in enumerate(rows_to_build):
+        row = _get_A_matrix_row( centroids, polymesh, d[:,i], N, en[:,i] ,ex[:,i], n[:,i], beam_width )
+        if row is None:
+            bad_equations.append(k)
+        else:
+            ci = list(np.where(row!=0)[0])
+            col_indx.extend( ci )
+            row_indx.extend( [k]*len(ci) )
+            data.extend( row[ci] )
+    return row_indx, col_indx, data, bad_equations
+
+def _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose, nprocs ):
     M = directions.shape[1] # number of measurements
     N = mesh.shape[0] # number of elements
 
@@ -68,28 +83,37 @@ def _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose  ):
     count=0
     if verbose:
         print("Building projection matrix...")
-    for k in range(M):
-        row = _get_A_matrix_row( centroids, polymesh, directions[:,k], N, entry[:,k], exit[:,k], nhat[:,k], beam_width )
-        if k%300==0:
-            if verbose:
-                print("Getting row number: "+str(k) +" of "+str(M))
-        if row is None:
-            bad_equations.append(k)
-            count+=1
-        else:
-            ci = list(np.where(row!=0)[0])
-            col_indx.extend( ci )
-            row_indx.extend( [k]*len(ci) )
-            data.extend( row[ci] )
+
+    split_arrays = zip( np.array_split(directions, nprocs, axis=1),
+                        np.array_split(entry, nprocs, axis=1),
+                        np.array_split(exit, nprocs, axis=1),
+                        np.array_split(nhat, nprocs, axis=1))
+    args = []
+    for k, (d, en ,ex, n) in enumerate(split_arrays):
+        rows_to_build = range(k*d.shape[1], d.shape[1])
+        args.append( (centroids, polymesh, N, beam_width, rows_to_build, d, en ,ex, n) )
+
+    with Pool(nprocs) as p:
+        out = p.map(build_part_of_matrix, args)
+
+    # Unpack the multicore results
+    row_indx, col_indx, data, bad_equations = [],[],[],[]
+    for o in out:
+        for i,l in enumerate([row_indx, col_indx, data, bad_equations]):
+            l.extend( o[i] )
+
+    if verbose:
+        print("Finished building projection matrix!")
+
     if verbose:
         print("")
         print("Total number of eqs: "+str( M) )
-        print("Topology cutoff lead to "+str( 100.*count/float(M) )+" percent eqs to be unusuable")
+        print("Topology cutoff lead to "+str( 100.*len(bad_equations)/float(M) )+" percent eqs to be unusuable")
         print("")
 
     return csr_matrix((data, (row_indx, col_indx)), shape=(M,N*6)), bad_equations
 
-def _constraints(mesh, low_bound, high_bound):
+def _constraints(mesh, low_bound, high_bound ):
     """
     Limit the difference in strain between to neighbouring elements
     A neighbour pair is defined as two elements sharing at least one node
@@ -105,7 +129,7 @@ def _constraints(mesh, low_bound, high_bound):
         indx = _find_index_of_neighbors(mesh, elm)
         for j in indx:
             if [i,j] in incl or [j,i] in incl: continue
-            
+
             for k in range(6):
 
                 row.append( curr_row )
@@ -140,44 +164,47 @@ def _find_index_of_neighbors(mesh, element):
     return np.array( index_neighbors )
 
 
-def trust_constr_solve( mesh, 
-                        directions, 
-                        strains , 
-                        entry, 
+def trust_constr_solve( mesh,
+                        directions,
+                        strains ,
+                        entry,
                         exit,
                         nhat,
-                        weights, 
-                        beam_width, 
-                        grad_constraint, 
+                        weights,
+                        beam_width,
+                        grad_constraint,
                         maxiter,
-                        verbose=True ):
+                        verbose=True,
+                        nprocs=1  ):
     """Compute a voxelated strain-tensor field weighted least squares fit to a series of line integral strain measures.
-    
+
     Assigns strain tensors over a 2d input mesh on a per element basis.
 
     Args:
         mesh (:obj:`numpy array`): Coordinate of mesh element nodes, ```shape=(N,4)``` for quads.
         directions (:obj:`numpy array`): unit vectors along which :obj:`strains` apply.
         strains (:obj:`numpy array`): Average strains along lines.
-        entry (:obj:`numpy array`): Xray grian entry points per line.
-        exit (:obj:`numpy array`): Xray grian exit points per line.
+        entry (:obj:`numpy array`): Xray grain entry points per line.
+        exit (:obj:`numpy array`): Xray grain exit points per line.
         nhat (:obj:`numpy array`): Xray direction per integral in sample coordinate system.
         weights (:obj:`numpy array`): Per measurement weights, higher weight gives more impact of equation.
         beam_width (:obj:`float`): Width of beam in units of microns.
-        grad_constraint (:obj:`float`): In x-y plane smoothing constraint of strain reconstruction. Deviations between 
-            two neighbouring pixels cannot exceed this value for any strain component.
+        grad_constraint (:obj:`float`): In x-y plane smoothing constraint of strain reconstruction. Deviations between
+            two neighboring pixels cannot exceed this value for any strain component.
         maxiter (:obj:`int`): Maximum number of WLSQ iterations to perform.
         verbose (:obj:`bool`): If to print progress. Defaults to True.
+        nprocs (:obj:`int`): Number of threads to use when assembling the system matrix. Defaults to 1. (Remember to
+            wrap your code in a ``if __name__="__main__":`` when running on multiple threads.)
 
     Returns:
-        (:obj:`list` of :obj:`numpy array`): List of strain tensor components each with ```shape=mesh.shape```. 
+        (:obj:`list` of :obj:`numpy array`): List of strain tensor components each with ```shape=mesh.shape```.
         The order of components is "XX","YY","ZZ","YZ","XZ","XY".
 
     """
 
     nelm = mesh.shape[0]
 
-    A, bad_equations = _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose )
+    A, bad_equations = _calc_A_matrix( mesh, directions, entry, exit, nhat, beam_width, verbose, nprocs )
 
     mask = np.ones(A.shape[0], dtype=bool)
     mask[bad_equations] = False
@@ -205,7 +232,7 @@ def trust_constr_solve( mesh,
 
     def func( x ): return 0.5*np.linalg.norm( (W.dot( A.dot(x) ) - W.dot( m )) )**2
     def jac( x ): return A.T.dot( W.T.dot( W.dot( A.dot(x) ) - W.dot( m ) ) )
-    
+
     res = minimize(func, x0, method="trust-constr", jac=jac, \
                     callback=callback, tol=1e-8, \
                     constraints=[linear_constraint],\
