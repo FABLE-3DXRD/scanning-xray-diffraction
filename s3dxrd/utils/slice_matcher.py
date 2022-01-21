@@ -2,7 +2,7 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 
-def match_and_label( pixelated_grains, id11_grains, angthres=3.0 ):
+def match_and_label( pixelated_grains, id11_grains, angthres=3*np.cos(np.radians(1.0))):
     """Segment a stack of 2d grain slices into 3d grains by orientation and z-overlap.
 
     This function iterates over stacks for pixelated grain masks and corresponding Id11
@@ -53,8 +53,8 @@ def match_and_label( pixelated_grains, id11_grains, angthres=3.0 ):
 
                     u1 = grains[str(indx)][str(i-1)].u
                     u2 = id11_grains[i][j].u
-                    angdiff = np.sum( [ np.degrees( np.arccos(u1[:,k].dot(u2[:,k])) ) for k in range(3) ] )
-                    if angdiff < angthres:
+                    angdiff = np.sum([u1[:, k].dot(u2[:, k]) for k in range(3)])
+                    if angdiff > angthres:
                         sample[mask,i] = indx
                         found_match = True
                         grains[str(indx)][str(i)] = id11_grains[i][j]
