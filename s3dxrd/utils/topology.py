@@ -156,7 +156,7 @@ def get_path_for_pos(args):
     return all_entry, all_exit, all_nhat, all_L, all_nsegs, bad_lines
 
 
-def get_integral_paths(angles, ytrans, zpos, sample_polygon, nprocs=4, show_geom=False):
+def get_integral_paths(angles, ytrans, zpos, sample_polygon, nprocs, show_geom=False):
     """Compute entry-exit points for a scanrange.
     """
 
@@ -171,6 +171,7 @@ def get_integral_paths(angles, ytrans, zpos, sample_polygon, nprocs=4, show_geom
     args = [(arr, all_entry, all_exit, all_nhat, all_L, all_nsegs, bad_lines,
              xray_endpoints, sample_polygon, zpos) for arr in split_arrays]
 
+    print("Multiprocessing the integral paths with " + str(nprocs) + "processors.")
     with Pool(nprocs) as p:
         out = p.map(get_path_for_pos, args)
 
