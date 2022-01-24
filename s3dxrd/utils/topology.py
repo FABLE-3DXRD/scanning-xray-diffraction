@@ -129,8 +129,6 @@ def get_path_for_pos(args):
     arr, all_entry, all_exit, all_nhat, all_L, all_nsegs, \
     bad_lines, xray_endpoints, sample_polygon, zpos = args
 
-    pass
-
     for i, ang, dty in arr:
         # Translate and rotate the xray endpoints according to ytrans and angle
         c, s = np.cos(np.radians(-ang)), np.sin(np.radians(-ang))
