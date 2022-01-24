@@ -10,7 +10,7 @@ def vectors_to_torch(vectors):
 
     Args:
         vectors (:obj:`dict`): vectors dictionary as specified by s3dxrd.measurements.Id11.peaks_to_vectors()
-    
+
     Returns:
         (:obj:`dict`): dictionary with same fields as ```vectors``` but with torch tensors replacing
             numby arrays.
@@ -95,7 +95,7 @@ def weight(d_measured, d_original, strain, tth, wavelength, bragg_order, distanc
     eps = (d_rdr-d_original)/d_original # strain at radius r + dr
     w = abs(1 / (strain - eps) )
     assert strain>eps
-    
+
     return w
 
 def uniq( vals ):
@@ -148,7 +148,7 @@ def convert_measurements( params, grain, flt, ymin, ystep, omegastep ):
         h = u[0]
         k = u[1]
         l = u[2]
-        
+
         for sc, dty, tth, eta, om, I, sc, G_w in zip( scs, detector_y_pos, tths, etas, omegas, intensity, scs, G_ws):
 
             all_hkl.append( [h,k,l] )
@@ -159,12 +159,12 @@ def convert_measurements( params, grain, flt, ymin, ystep, omegastep ):
             Qlab = get_Q(tth, eta, wavelength)
             Qomega = -np.dot( np.linalg.inv( omega_matrix( om ) ), Qlab )
             eps_taylor = taylor_strain(Qomega, G_0) #<= to use Henningssons Taylor
-            
+
             strains.append( eps_taylor )
 
             #print(eps, eps_taylor)
             #strains.append( eps ) #<= to use Poulsens
-            
+
             #directions.append( G_0/np.linalg.norm(G_0) ) #<= this approximation is probably equally good
             directions.append( normal_omega(tth, eta, wavelength, om) )
             all_omegas.append( om )
@@ -176,7 +176,7 @@ def convert_measurements( params, grain, flt, ymin, ystep, omegastep ):
             all_Gws.append(G_w)
             #plt.scatter(dty, eps)
             #plt.title(r'$\omega$ = '+str(om))
-            
+
             weights.append( weight( d_measured, d_original, eps, tth, wavelength, bragg_order, distance, pixelsize ) )
         #plt.show()
     measurements = {}

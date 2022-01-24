@@ -35,7 +35,7 @@ def peaks_to_vectors(flt_paths,
                      nprocs=1,
                      save_path=None):
     """Convert an x-ray diffraction dataset saved in the ImageD11 format to vector format
-    
+
     Based on an inital guess of ubi matrices all data contained in a sereis of Id11 peak files
     is analysed. Grian shapes are reconstructed and grain orientations refined. The data is converted
     into a vector format where each measurement is associated to a parametric line trhough the grain
@@ -53,39 +53,40 @@ def peaks_to_vectors(flt_paths,
         ubi_paths (:obj:`list` of :obj:`string`):  Absolute file paths to Id11 ubi matrices file.
         omegastep (:obj:`float`): Rotation intervall in degrees over wich detector images are where read out.
         ymin (:obj:`float`): Minimum y-translation of smaple in units of microns.
-        ymax (:obj:`float`): Maximum y-translation of smaple in units of microns. 
+        ymax (:obj:`float`): Maximum y-translation of smaple in units of microns.
         ystep (:obj:`float`): Sample y-translation stepsize.
         hkltol (:obj:`float`): Miller index tolerance for assigning peaks to a grain. Defaults to 0.05.
         nmedian (:obj:`float`): Number of median deviations of a peak to discard as outlier. Defaults to 5.
-        rcut (:obj:`float`):  Relative threshold for defining grain shape from tomographic reconstrction. Defaults to 0.2.
-        nprocs (:obj:`int`): Number of processors to use for multiprocessing. Defaults to one.
+        rcut (:obj:`float`):  Relative threshold for defining grain shape from tomographic reconstruction. Defaults to 0.2.
+        nprocs (:obj:`int`): Number of processors to use for multiprocessing. Defaults to one. (Remember to
+            wrap your code in a ``if __name__="__main__":`` when running on multiple threads.)
         save_path (:obj:`string`): Path at which to save all computed for arrays. Defaults to :obj:`None`.
 
     Returns:
         (:obj:`dict`): dictionary with keys and values:
 
             **Y** (:obj:`numpy array`): Average scalar strains along scanned lines. ``shape=(N,)``
-  
+
             **sig_m** (:obj:`numpy array`): Per measurement standard deviations. ``shape=(N,)``
-  
+
             **entry** (:obj:`numpy array`): Entry points for line integral meaurements.  ``shape=(k,N)``
-  
+
             **exit** (:obj:`numpy array`): Exit points for line integral meaurements.  ``shape=(k,N)``
-  
+
             **nhat** (:obj:`numpy array`): X-ray beam direction normal in sample coordinate system. ``shape=(3,N)``
-  
+
             **kappa** (:obj:`numpy array`): Direction of strain (Y) in sample coordinate system. ``shape=(3,N)``
-  
+
             **L** (:obj:`numpy array`): Lengths of scanned lines. ``shape=(N,)``
-  
+
             **nsegs** (:obj:`numpy array`): Number of segments for each line integral. ``shape=(N,)``
- 
+
             **polygons** (:obj:`dict` of :obj:`dict` of :obj:`Shapely Polygons`): Polygonal boundary representation of grians.
-  
+
             **polygon_orientations** (:obj:`dict` of :obj:`dict` of :obj:`numpy array`): Crystal orientation of each grain slice in polygons.
-  
+
             **orientations** (:obj:`numpy array`): Per measurement crystal orientation (uniform along scan-line).
-  
+
             **measurement_grain_map** (:obj:`numpy array`): dictionary keys as integers corresponding to polygons, such that
             ``polygons[str(measurement_grain_map[i])]`` gives the polygon slices dictionary of the grain
             that gave rise to measurement number i. ``shape=(N,)``

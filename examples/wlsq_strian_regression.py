@@ -36,11 +36,19 @@ if __name__=="__main__":
 
     # Next we call the regression code passing along only the masked out measurements.
     # if you want you could run on several cores changing the nprocs=1 argument
+    import cProfile
+    import pstats
+    pr = cProfile.Profile()
+    pr.enable()
     wlsq_strain = trust_constr_solve( mesh, vectors["kappa"][:,mask], vectors["Y"][mask],
                                     vectors["entry"][:,mask], vectors["exit"][:,mask],
                                     vectors["nhat"][:,mask], 1./vectors["sig_m"][mask].flatten(),
                                     ystep, grad_constraint=5*(1e-4),
                                     maxiter=5, verbose=True, nprocs=1)
+    pr.disable()
+    pr.dump_stats('tmp_profile_dump')
+    ps = pstats.Stats('tmp_profile_dump').strip_dirs().sort_stats('cumtime')
+    ps.print_stats(15)
 
     # We can plot the resulting field by converting it into pixelated images using mesh_to_pixels()
     # The save module can help with saving to paraview

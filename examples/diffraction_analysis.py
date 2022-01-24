@@ -6,38 +6,48 @@ import matplotlib.pyplot as plt
 This is the first step before any regression can be performed.
 """
 
-# We will work with a simulated data set that has the following meta parameters
-ystep     =  5.                           # Translation stepsize in microns.
-ymin      = -70.                          # Minimum sample y-translation in microns.
-ymax      =  70.                          # Maximum sample y-translation in microns.
-zpos      = np.array(range(1,13))*ystep   # coordinates of scanned positions in z
-omegastep = 0.1                           # Detector readout integration interval in degrees
-hkltol    = 0.05                          # Miller index tolerance for mapping peaks.
-nmedian   = np.inf                        # discard outliers, np.inf keeps all peaks
-rcut      = 0.35                          # Relative segmentation threshold for grain density map.
+if __name__=='__main__':
+    # We will work with a simulated data set that has the following meta parameters
+    ystep     =  5.                           # Translation stepsize in microns.
+    ymin      = -70.                          # Minimum sample y-translation in microns.
+    ymax      =  70.                          # Maximum sample y-translation in microns.
+    zpos      = np.array(range(1,13))*ystep   # coordinates of scanned positions in z
+    omegastep = 0.1                           # Detector readout integration interval in degrees
+    hkltol    = 0.05                          # Miller index tolerance for mapping peaks.
+    nmedian   = np.inf                        # discard outliers, np.inf keeps all peaks
+    rcut      = 0.35                          # Relative segmentation threshold for grain density map.
 
-# We build the paths to the example data peak files and ubi files and parameters file
-ubi_paths  = ["./example_data/example_grain_"+"z"+str(i)+".ubi" for i in range(len(zpos))]
-param_path =  "./example_data/example_grain_z3.par"
-flt_paths  = ["./example_data/example_grain_"+"z"+str(i)+".flt" for i in range(len(zpos))]
+    # We build the paths to the example data peak files and ubi files and parameters file
+    ubi_paths  = ["./example_data/example_grain_"+"z"+str(i)+".ubi" for i in range(len(zpos))]
+    param_path =  "./example_data/example_grain_z3.par"
+    flt_paths  = ["./example_data/example_grain_"+"z"+str(i)+".flt" for i in range(len(zpos))]
 
-# We import the Id11 module to convert the peak files to vectors.
-from s3dxrd.measurement.Id11 import peaks_to_vectors
-vectors = peaks_to_vectors( flt_paths, zpos, param_path,
-                            ubi_paths, omegastep, ymin,
-                            ymax, ystep, hkltol, nmedian,
-                            rcut, save_path = "./example_results/vectors.pkl" )
+    # We import the Id11 module to convert the peak files to vectors.
+    from s3dxrd.measurement.Id11 import peaks_to_vectors
 
-# Vectors is now a dictionary with keys documented in s3dxrd.measurement.Id11.peaks_to_vectors()
-for key in vectors: print(key, " : ", type(vectors[key]))
+    import cProfile
+    import pstats
+    pr = cProfile.Profile()
+    pr.enable()
+    vectors = peaks_to_vectors( flt_paths, zpos, param_path,
+                                ubi_paths, omegastep, ymin,
+                                ymax, ystep, hkltol, nmedian,
+                                rcut, nprocs=1, save_path = "./example_results/vectors.pkl")
+    pr.disable()
+    pr.dump_stats('tmp_profile_dump')
+    ps = pstats.Stats('tmp_profile_dump').strip_dirs().sort_stats('cumtime')
+    ps.print_stats(15)
 
-# Now, Let's see what the reconstructed grains look like in 3d
-labeled_volume = vectors["labeled_volume"]
+    # Vectors is now a dictionary with keys documented in s3dxrd.measurement.Id11.peaks_to_vectors()
+    for key in vectors: print(key, " : ", type(vectors[key]))
 
-colors = np.zeros(labeled_volume.shape+(3,))
-for i in np.unique(labeled_volume[labeled_volume!=0]):
-    colors[labeled_volume==i, :] = np.random.rand(3,)
+    # Now, Let's see what the reconstructed grains look like in 3d
+    labeled_volume = vectors["labeled_volume"]
 
-ax = plt.figure().add_subplot(projection='3d')
-ax.voxels(labeled_volume!=0, facecolors=colors, edgecolor='k')
-plt.show()
+    colors = np.zeros(labeled_volume.shape+(3,))
+    for i in np.unique(labeled_volume[labeled_volume!=0]):
+        colors[labeled_volume==i, :] = np.random.rand(3,)
+
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.voxels(labeled_volume!=0, facecolors=colors, edgecolor='k')
+    plt.show()
