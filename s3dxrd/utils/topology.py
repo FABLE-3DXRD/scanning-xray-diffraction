@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 import shapely.geometry
 from scipy.ndimage.morphology import binary_dilation
 from scipy.ndimage import label
@@ -261,31 +261,31 @@ def repack(all_entry, all_exit, all_nhat, all_L, all_nsegs):
     return entry, exit, nhat, L, nsegs
 
 
-def show_polygon_and_image(polygon, image, pixel_size, center):
-    """Plot a image and polygon for debugging purposes
-    """
-    fig, ax = plt.subplots(1, 2, figsize=(12, 6))
-    fig.suptitle('Center at ' + str(center))
-    xc, yc = polygon.exterior.xy
-    xcenter = image.shape[1] * pixel_size * center[0]
-    ycenter = image.shape[0] * pixel_size * center[1]
-    ax[0].imshow(image, cmap='gray')
-    ax[0].set_title('Pixel image')
-    ax[0].arrow(int(image.shape[1] * center[0]), int(image.shape[0] * center[1]), \
-                image.shape[0] // 4, 0, color='r', head_width=0.15)  # y
-    ax[0].text(int(image.shape[1] * center[0]) + image.shape[1] // 4, int(image.shape[0] * center[1]) + 0.25, \
-               'y', color='r')
-    ax[0].arrow(int(image.shape[1] * center[0]), int(image.shape[0] * center[1]), \
-                0, -image.shape[1] // 4, color='r', head_width=0.15)  # x
-    ax[0].text(int(image.shape[1] * center[0]) + 0.25, int(image.shape[0] * center[1]) - image.shape[1] // 4, \
-               'x', color='r')
-    ax[1].set_title('Polygon representation')
-    ax[1].fill(xc, yc, c='gray', zorder=1)
-    ax[1].scatter(xc, yc, c='r', zorder=2)
-    ax[1].grid(True)
-    ax[1].scatter(0, 0, c='b', zorder=3)
-    ax[1].set_xlim([-xcenter, image.shape[1] * pixel_size - xcenter])
-    ax[1].set_ylim([-ycenter, image.shape[0] * pixel_size - ycenter])
-    ax[1].set_xlabel('x')
-    ax[1].set_ylabel('y')
-    plt.show()
+# def show_polygon_and_image(polygon, image, pixel_size, center):
+#     """Plot a image and polygon for debugging purposes
+#     """
+#     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+#     fig.suptitle('Center at ' + str(center))
+#     xc, yc = polygon.exterior.xy
+#     xcenter = image.shape[1] * pixel_size * center[0]
+#     ycenter = image.shape[0] * pixel_size * center[1]
+#     ax[0].imshow(image, cmap='gray')
+#     ax[0].set_title('Pixel image')
+#     ax[0].arrow(int(image.shape[1] * center[0]), int(image.shape[0] * center[1]), \
+#                 image.shape[0] // 4, 0, color='r', head_width=0.15)  # y
+#     ax[0].text(int(image.shape[1] * center[0]) + image.shape[1] // 4, int(image.shape[0] * center[1]) + 0.25, \
+#                'y', color='r')
+#     ax[0].arrow(int(image.shape[1] * center[0]), int(image.shape[0] * center[1]), \
+#                 0, -image.shape[1] // 4, color='r', head_width=0.15)  # x
+#     ax[0].text(int(image.shape[1] * center[0]) + 0.25, int(image.shape[0] * center[1]) - image.shape[1] // 4, \
+#                'x', color='r')
+#     ax[1].set_title('Polygon representation')
+#     ax[1].fill(xc, yc, c='gray', zorder=1)
+#     ax[1].scatter(xc, yc, c='r', zorder=2)
+#     ax[1].grid(True)
+#     ax[1].scatter(0, 0, c='b', zorder=3)
+#     ax[1].set_xlim([-xcenter, image.shape[1] * pixel_size - xcenter])
+#     ax[1].set_ylim([-ycenter, image.shape[0] * pixel_size - ycenter])
+#     ax[1].set_xlabel('x')
+#     ax[1].set_ylabel('y')
+#     plt.show()
