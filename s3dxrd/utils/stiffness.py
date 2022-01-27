@@ -80,4 +80,4 @@ def calculate_stress_by_rotation(wlsq_strain, U):
     # Split the stress matrix to give it the same format as wlsq_strains.
     wlsq_stress = np.hsplit(stress_mat, 6)
 
-    return wlsq_stres
+    return wlsq_stress
