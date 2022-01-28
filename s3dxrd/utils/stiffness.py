@@ -79,6 +79,9 @@ def calculate_stress_by_matrix_rotation(wlsq_strain, U):
     # Split the stress matrix to give it the same format as wlsq_strains.
     wlsq_stress = np.hsplit(stress_mat, 6)
 
+    for i, arr in enumerate(wlsq_stress):
+        wlsq_stress[i] = arr.reshape((-1))
+        print("Processing array " + str(i))
     return wlsq_stress
 
 def calculate_stress_by_vector_rotation(wlsq_strain, U):
@@ -117,6 +120,9 @@ def calculate_stress_by_vector_rotation(wlsq_strain, U):
 
     # Split the stress matrix to give it the same format as wlsq_strains.
     wlsq_stress = np.hsplit(stress_mat, 6)
+    for i, arr in enumerate(wlsq_stress):
+        wlsq_stress[i] = arr.reshape((-1))
+        print("Processing array " + str(i))
     return wlsq_stress
 
 def _vec_to_tens(vec):
