@@ -32,8 +32,7 @@ def rotate_stiffness(U, C):
 
     """
     M = _get_rotation_matrix(U)
-    C_rot = np.zeros(C.shape)
-    C_rot[:, :] = (M[:, :] @ C[:, :] @ np.transpose(M[:, :]))
+    C_rot = (M @ C @ np.transpose(M))
 
     return C_rot
 
@@ -52,14 +51,15 @@ def _get_rotation_matrix(U):
     """
     M = np.array([[U[0, 0] ** 2, U[0, 1] ** 2, U[0, 2] ** 2,       2 * U[0, 1] * U[0, 2], 2 * U[0, 2] * U[0, 0], 2 * U[0, 0] * U[0, 1]],
                   [U[1, 0] ** 2, U[1, 1] ** 2, U[1, 2] ** 2,       2 * U[1, 1] * U[1, 2], 2 * U[1, 2] * U[1, 0], 2 * U[1, 0] * U[1, 1]],
-                  [U[2, 0] ** 2, U[2, 1] ** 2, U[2, 2] ** 2,       2 * U[2, 1] * U[2, 2], 2 * U[2, 2] * U[2, 0], 2 * U[2, 1] * U[2, 1]],
+                  [U[2, 0] ** 2, U[2, 1] ** 2, U[2, 2] ** 2,       2 * U[2, 1] * U[2, 2], 2 * U[2, 2] * U[2, 0], 2 * U[2, 0] * U[2, 1]],
+
                   [U[1, 0] * U[2, 0], U[1, 1] * U[2, 1], U[1, 2] * U[2, 2],       U[1, 1] * U[2, 2] + U[1, 2] * U[2, 1],  U[1, 0] * U[2, 2] + U[1, 2] * U[2, 0],  U[1, 1] * U[2, 0] + U[1, 0] * U[2, 1]],
                   [U[2, 0] * U[0, 0], U[2, 1] * U[0, 1], U[2, 2] * U[0, 2],       U[0, 1] * U[2, 2] + U[0, 2] * U[2, 1],  U[0, 2] * U[2, 0] + U[0, 0] * U[2, 2],  U[0, 0] * U[2, 1] + U[0, 1] * U[2, 0]],
                   [U[0, 0] * U[1, 0], U[0, 1] * U[1, 1], U[0, 2] * U[1, 2],       U[0, 1] * U[1, 2] + U[0, 2] * U[1, 1],  U[0, 2] * U[1, 0] + U[0, 0] * U[1, 2],  U[0, 0] * U[1, 1] + U[0, 1] * U[1, 0]]])
     return M
 
 
-def calculate_stress_by_rotation(wlsq_strain, U):
+def calculate_stress_by_matrix_rotation(wlsq_strain, U):
     # Get the stiffness matrix as measured in the grain coordinate system
     C = stiff_mat()
     # Rotate the stiffness matrix by the grain orientation matrix
@@ -75,9 +75,54 @@ def calculate_stress_by_rotation(wlsq_strain, U):
         strain_vector = strain_mat[i, :]
         strain_vector[3:6] *= 2
         # Apply the stiffness matrix to get the stress vectors and stack the stress vectors in a matrix.
-        stress_vector = C @ strain_vector
-        stress_mat[i, :] = stress_vector
+        stress_mat[i, :] = C @ strain_vector
     # Split the stress matrix to give it the same format as wlsq_strains.
     wlsq_stress = np.hsplit(stress_mat, 6)
 
     return wlsq_stress
+
+def calculate_stress_by_vector_rotation(wlsq_strain, U):
+    # Here the stresses will be calculated using a different method where the strain vectors are rotated into the grain
+    # coordinate system where the stiffness matrix is applied and then the corresponding strain vector is rotated back
+    # by solving a system of equations.
+
+    # Get the stiffness matrix as measured in the grain coordinate system
+    C = stiff_mat()
+
+    # Stack the strain vectors into a matrix, where each row contains the strain components for a certain element in
+    # the mesh which the stress will be plotted on. Make an empty matrix for the stress vectors.
+    strain_mat = np.column_stack(wlsq_strain)
+    stress_mat = np.zeros_like(strain_mat)
+
+    for i in range(np.size(strain_mat, 0)):
+        strain_vector = strain_mat[i, :]
+        # Transform the strain_vector to the grain coordinate system.
+        strain_tensor = _vec_to_tens(strain_vector)
+        grain_strain_tensor = U.T @ strain_tensor @ U
+
+        # Convert the grain strain vector to Voigt notation.
+        grain_strain_vector = _tens_to_vec(grain_strain_tensor)
+        grain_strain_vector[3:6] *= 2
+
+        # Calculate the stress in the grain coordinate system and apply the U matrix to transform the strain back to
+        # the sample coordinate system.
+        grain_stress_vector = C @ grain_strain_vector
+
+        # Convert the stress vector to the sample coordinate system.
+        grain_stess_tensor = _vec_to_tens(grain_stress_vector)
+        sample_stress_tensor = U @ grain_stess_tensor @ U.T
+        sample_stress_vector = _tens_to_vec(sample_stress_tensor)
+
+        stress_mat[i, :] = sample_stress_vector
+
+    # Split the stress matrix to give it the same format as wlsq_strains.
+    wlsq_stress = np.hsplit(stress_mat, 6)
+    return wlsq_stress
+
+def _vec_to_tens(vec):
+    tens = np.row_stack(np.array([[vec[0], vec[5], vec[4]], [vec[5], vec[1], vec[3]], [vec[4], vec[3], vec[2]]]))
+    return tens
+
+def _tens_to_vec(tens):
+    vec = np.array([tens[0, 0], tens[1, 1], tens[2, 2], tens[1, 2], tens[0, 2], tens[0, 1]])
+    return vec
