@@ -1,10 +1,15 @@
 import datetime
+import math
+
 import numpy as np
 import vtkmodules.vtkIOXML as vtk_xml
 import vtkmodules.util.numpy_support as vtk_np
 from numpy import ndarray
 import matplotlib.pyplot as plt
 from numba import jit
+from scipy import ndimage
+
+
 
 def vtk_to_numpy(vtkfile, plot=False):
     """
@@ -36,7 +41,7 @@ def vtk_to_numpy(vtkfile, plot=False):
         ax.scatter(xcoords, ycoords, zcoords)
         plt.show()
 
-    return values, coords
+    return np.array(values), coords
 
 
 def alphashape(coords, nlayers=1, plot=False):
@@ -102,7 +107,8 @@ def alphashape(coords, nlayers=1, plot=False):
         ax.scatter(xcoords_bound, ycoords_bound, zcoords_bound)
         plt.show()
 
-    check_bc_coord_equality(boundary_coords, coords)
+    _check_bc_coord_equality(boundary_coords, coords)
+    return boundary_coords
 
 
 def _min_absolute_value(a1, a2):
@@ -127,12 +133,37 @@ def find_boundary_by_force(voxels):
 
 
 @jit
-def check_bc_coord_equality(boundary, coords):
+def _check_bc_coord_equality(boundary, coords):
     for bc in boundary:
         compare_bc_to_coords = np.array([(np.linalg.norm(coord - bc) < 1e-10) for coord in coords])
         if not np.any(compare_bc_to_coords):
             print(bc)
             raise RuntimeWarning("Warning: One or several points of the boundary cannot be found in the original list "
-                                 "of points defining the body!" )
+                                 "of points defining the body!")
     print("Passed boundary equality check!")
 
+
+def mercator_project(boundary, coordinates, values):
+    radius = 25.
+    sphere_coords = np.array([])
+    mercator_coords = np.array([])
+    cms = (np.sum(boundary, axis=0)/np.shape(boundary)[0])
+    for bc in boundary:
+        sphere_coords = np.append(sphere_coords, _carthesian_to_spherical(bc, cms))
+
+
+def _find_by_vector_norm(assortment, target):
+    for indx in enumerate(assortment):
+        if np.linalg.norm(assortment[indx] - target) < 1e-10:
+            return indx
+def _carthesian_to_spherical(coord, cms):
+    location = coord-cms
+    r = np.linalg.norm(location)
+    theta = math.acos(location[2]/r) - math.pi/2
+    phi = math.atan2(location[1], location[0])
+    return r, theta, phi
+
+vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
+boundary = alphashape(coords, plot=False)
+a = mercator_project(boundary, coords, vals)
+print(a)
