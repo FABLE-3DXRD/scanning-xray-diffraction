@@ -1,4 +1,6 @@
+import datetime
 import numpy as np
+import scipy.ndimage
 import vtkmodules.vtkIOXML as vtk_xml
 import vtkmodules.util.numpy_support as vtk_np
 from numpy import ndarray
@@ -49,13 +51,13 @@ def alphashape(coords, nlayers=1, plot=False):
     measurements are taken 25 microns apart.
 
     :param coords: List of coordinates in x, y and z for the different points of the point cloud.
-    :type coords:  list[ndarray]
+    :type coords:  ndarray
     :param nlayers: Number of layers in the alpha shape, Defaults to one (the outermost layer).
     :type nlayers: int
     :param plot: Toggle plotting of the alpha shape as a point cloud and as a tessellated mesh body. Defaults to False.
     :type plot: bool
     :return: The coordinates of the points in the point cloud corresponding to the alpha shape.
-    :rtype: list[ndarray]
+    :rtype: ndarray
     """
     coords_4d = np.hstack((coords, np.ones((coords.shape[0], 1))))
 
@@ -67,8 +69,8 @@ def alphashape(coords, nlayers=1, plot=False):
     min_vals = np.amin(voxel_coords[:3, :], axis=1)
     shift = np.array(_min_absolute_value(max_vals, min_vals))
     transform_direction = np.array([[1., 0, 0, -shift[0]], [0, 1., 0, -shift[1]], [0, 0, 1., -shift[2]], [0, 0, 0, 1.]])
-    inv_transform_direction = np.array([[1., 0, 0, shift[0]], [0, 1., 0, shift[1]],
-                                        [0, 0, 1., shift[2]], [0, 0, 0, 1.]])
+    inv_transform_direction = np.array([[1., 0, 0, shift[0] - 1], [0, 1., 0, shift[1] - 1],
+                                        [0, 0, 1., shift[2] - 1], [0, 0, 0, 1.]])
     voxel_coords = transform_direction @ voxel_coords
 
     voxel_volume_size = np.around(max_vals - min_vals).astype(int)
@@ -77,19 +79,25 @@ def alphashape(coords, nlayers=1, plot=False):
     voxel_coords = np.around(voxel_coords[:3, :].T).astype(int)
     for x, y, z in voxel_coords:
         voxels[x, y, z] = 1
-
-    # for i in range(np.shape(voxels)[2]):
-    #     voxels[i] = ndimage.binary_fill_holes(voxels[i]).astype(int)
-    # voxels = ndimage.binary_closing(voxels)
     voxels = np.pad(voxels, 1, constant_values=0)
+    t1 = datetime.datetime.now()
+    boundary_voxels = find_boundary_by_force(voxels)
+    t2 = datetime.datetime.now()
 
-    verts, faces, normals, values = measure.marching_cubes(voxels, step_size=1)
-    verts_4d = np.hstack((verts, np.ones((verts.shape[0], 1))))
-    verts_coords = (transform_scale @ inv_transform_direction @ verts_4d.T)
+    print("Execution time for boundary searching is: " + str(t2 - t1))
 
-    best_approximations = find_best_approximations(voxel_coords, verts, normals)
-    approx_4d = np.hstack((best_approximations, np.ones((best_approximations.shape[0], 1))))
-    approx_coords = (transform_scale @ inv_transform_direction @ approx_4d.T)
+    boundary_voxel_coords = np.vstack(np.where(boundary_voxels == 1))
+    boundary_voxel_coords = np.pad(boundary_voxel_coords, ((0, 1), (0, 0)), constant_values=1)
+
+    boundary_coords = ((transform_scale @ (inv_transform_direction @ boundary_voxel_coords))[:3, :]).T
+
+    # verts, faces, normals, values = measure.marching_cubes(voxels, step_size=1)
+    # verts_4d = np.hstack((verts, np.ones((verts.shape[0], 1))))
+    # verts_coords = (transform_scale @ inv_transform_direction @ verts_4d.T)
+
+    # best_approximations = find_best_approximations(voxel_coords, verts, normals)
+    # approx_4d = np.hstack((best_approximations, np.ones((best_approximations.shape[0], 1))))
+    # approx_coords = (transform_scale @ inv_transform_direction @ approx_4d.T)
 
     """
     result = None
@@ -109,27 +117,33 @@ def alphashape(coords, nlayers=1, plot=False):
     # result = np.vsplit((verts_coords.T)[:, :3], np.shape(verts_coords)[1])
 
     if plot:
-        xcoords = [arr[0] for arr in approx_coords.T]
-        ycoords = [arr[1] for arr in approx_coords.T]
-        zcoords = [arr[2] for arr in approx_coords.T]
+        xcoords_bound = [arr[0] for arr in boundary_coords]
+        ycoords_bound = [arr[1] for arr in boundary_coords]
+        zcoords_bound = [arr[2] for arr in boundary_coords]
+
+        xcoords = [arr[0] for arr in coords]
+        ycoords = [arr[1] for arr in coords]
+        zcoords = [arr[2] for arr in coords]
 
         fig = plt.figure(1)
         ax = plt.axes(projection='3d')
         ax.scatter(xcoords, ycoords, zcoords)
+        ax.scatter(xcoords_bound, ycoords_bound, zcoords_bound)
 
-        fig2 = plt.figure(2, figsize=(10, 10))
-        ax2 = fig2.add_subplot(111, projection='3d')
-        ax2.set_xlim(0, 24)
-        ax2.set_ylim(0, 20)
-        ax2.set_zlim(0, 32)
+        # ig2 = plt.figure(2, figsize=(10, 10))
+        # ax2 = fig2.add_subplot(111, projection='3d')
+        # ax2.set_xlim(0, 24)
+        # ax2.set_ylim(0, 20)
+        # ax2.set_zlim(0, 32)
 
-        mesh = Poly3DCollection(verts[faces])
-        mesh.set_edgecolor('k')
-        ax2.add_collection3d(mesh)
+        # mesh = Poly3DCollection(verts[faces])
+        # mesh.set_edgecolor('k')
+        # ax2.add_collection3d(mesh)
 
-        plt.tight_layout()
+        # plt.tight_layout()
         plt.show()
-    # return result
+
+    check_bc_coord_equality(boundary_coords, coords)
 
 
 def _min_absolute_value(a1, a2):
@@ -144,7 +158,7 @@ def _min_absolute_value(a1, a2):
 # return dist
 
 
-@jit
+# @jit
 def find_best_approximations(coords, verts, normals):
     best_approximations = np.zeros_like(normals)
 
@@ -156,16 +170,59 @@ def find_best_approximations(coords, verts, normals):
             distances[ii] = (normal[0] * point[0] + normal[1] * point[1] + normal[2] * point[2] + d) / np.linalg.norm(
                 normal)
 
-        #if np.any(distances) > 0:  # The first-hand choice should be points that are outside the boundary defined by the
-            # planes
-            #minind = np.argmin(np.where(distances > 0, distances, np.inf))
-            #best_approximations[j] = coords[minind]
-            #coords = np.delete
-        #else:
+        # if np.any(distances) > 0:  # The first-hand choice should be points that are outside the boundary defined by the
+        # planes
+        # minind = np.argmin(np.where(distances > 0, distances, np.inf))
+        # best_approximations[j] = coords[minind]
+        # coords = np.delete
+        # else:
         minind = np.argmin(np.absolute(distances))
         best_approximations[j] = coords[minind]
         coords[minind] = [np.inf, np.inf, np.inf]
     return best_approximations
+
+
+def find_boundary_by_erosion(voxels):
+    voxel_copy_z = np.copy(voxels)
+    for z_layer in range(np.shape(voxels)[2]):
+        # voxel_copy_z[:, :, z_layer] = scipy.ndimage.binary_erosion(voxel_copy_z[:, :, z_layer])
+        diff_x = np.diff(voxel_copy_z[:, :, z_layer], axis=1, n=1)
+        diff_x = np.pad(diff_x, ((0, 0), (0, 1)), mode='constant', constant_values=0)
+        diff_y = np.diff(voxel_copy_z[:, :, z_layer], axis=0, n=1)
+        diff_y = np.pad(diff_y, ((0, 1), (0, 0)), mode='constant', constant_values=0)
+
+        tmp = np.ma.masked_values(np.abs(diff_x), 1).mask + np.ma.masked_values(np.abs(diff_y), 1).mask
+        voxel_copy_z[:, :, z_layer] += diff_y
+        voxel_copy_z[:, :, z_layer] += diff_x
+
+        # diff = diff_x + diff_y.T
+    # borders_z = voxels - voxel_copy_z
+
+
+def find_boundary_by_force(voxels):
+    dim = np.shape(voxels)
+    boundary = np.zeros_like(voxels)
+    for i in range(0, dim[0]):
+        for j in range(0, dim[1]):
+            for k in range(0, dim[2]):
+                if voxels[i, j, k] == 1:
+                    if np.any(voxels[i - 1:i + 2, j - 1:j + 2, k - 1:k + 2] == 0.):
+                        boundary[i, j, k] = 1
+                else:
+                    continue
+
+    return boundary
+
+
+@jit
+def check_bc_coord_equality(boundary, coords):
+    for bc in boundary:
+        compare_bc_to_coords = np.array([(np.linalg.norm(coord - bc) < 1e-10) for coord in coords])
+        if not np.any(compare_bc_to_coords):
+            print(bc)
+            raise RuntimeWarning("Warning: One or several points of the boundary cannot be found in the original list "
+                                 "of points defining the body!" )
+    print("Passed boundary equality check!")
 
 
 vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
