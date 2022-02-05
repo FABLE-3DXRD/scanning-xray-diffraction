@@ -10,7 +10,6 @@ from numba import jit
 from scipy import ndimage
 
 
-
 def vtk_to_numpy(vtkfile, plot=False):
     """
     Import point cloud data stored in a VTK file to a list of Numpy arrays.
@@ -143,27 +142,62 @@ def _check_bc_coord_equality(boundary, coords):
     print("Passed boundary equality check!")
 
 
-def mercator_project(boundary, coordinates, values):
+def project_to_plane(boundary, coordinates, values, projection_function, plot=True):
+    # TODO: Add display of tensor values by writing to VTK file.
     radius = 25.
-    sphere_coords = np.array([])
-    mercator_coords = np.array([])
-    cms = (np.sum(boundary, axis=0)/np.shape(boundary)[0])
-    for bc in boundary:
-        sphere_coords = np.append(sphere_coords, _carthesian_to_spherical(bc, cms))
+
+    cms = (np.sum(boundary, axis=0) / np.shape(boundary)[0])
+    coordinates = np.pad(coordinates, ((0, 0), (0, 1)), constant_values=1)
+    boundary = np.pad(boundary, ((0, 0), (0, 1)), constant_values=1)
+
+    move_grain_to_cms = np.array([[1, 0, 0, -cms[0]], [0, 1, 0, -cms[1]], [0, 0, 1, -cms[2]], [0, 0, 0, 1]])
+    coordinates = (move_grain_to_cms @ coordinates.T).T
+    boundary = ((move_grain_to_cms @ boundary.T).T)[:, :3]
+    # Note: from here on the grain is centered at the origin, but the stresses/strains have not changed direction!
+    sphere_coords = [_carthesian_to_spherical(bc, np.array([0, 0, 0])) for bc in boundary]
+    projected_coords = projection_function(sphere_coords)
+
+    if plot:
+        xcoords = [arr[0] for arr in coordinates]
+        ycoords = [arr[1] for arr in coordinates]
+        zcoords = [arr[2] for arr in coordinates]
+
+        xcoords_projected = [arr[0] for arr in projected_coords]
+        ycoords_projected = [arr[1] for arr in projected_coords]
+
+        fig = plt.figure(1)
+        ax = plt.axes(projection='3d')
+        ax.scatter(xcoords, ycoords, zcoords)
+
+        fig = plt.figure(2)
+        ax = plt.axes()
+        ax.scatter(xcoords_projected, ycoords_projected)
+        #ax.set_ylim([0, 3000])
+        plt.show()
 
 
 def _find_by_vector_norm(assortment, target):
     for indx in enumerate(assortment):
         if np.linalg.norm(assortment[indx] - target) < 1e-10:
             return indx
-def _carthesian_to_spherical(coord, cms):
-    location = coord-cms
-    r = np.linalg.norm(location)
-    theta = math.acos(location[2]/r) - math.pi/2
-    phi = math.atan2(location[1], location[0])
-    return r, theta, phi
 
-vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
+
+def _carthesian_to_spherical(coord, cms):
+    location = coord - cms
+    r = np.linalg.norm(location)
+    phi = math.asin(location[2] / r)
+    lamda = math.atan2(location[1], location[0])
+    return (r, phi, lamda)
+
+
+def _mercator(spherical_coordinates):
+    mercator_coordinates_x = np.array([sphere_coord[0] * sphere_coord[2] for sphere_coord in spherical_coordinates])
+    mercator_coordinates_y = np.array([sphere_coord[0] * np.log(np.tan(np.pi / 4 + sphere_coord[1] / 2))
+                                       for sphere_coord in spherical_coordinates])
+    return np.vstack((mercator_coordinates_x, mercator_coordinates_y)).T
+
+
+vals, coords = vtk_to_numpy("/home/philip/Desktop/WIP-grains/grains/grain_stress_5.vtu")
 boundary = alphashape(coords, plot=False)
-a = mercator_project(boundary, coords, vals)
-print(a)
+project_to_plane(boundary, coords, vals, _mercator)
+
