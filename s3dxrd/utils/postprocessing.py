@@ -7,7 +7,9 @@ import vtkmodules.util.numpy_support as vtk_np
 from numpy import ndarray
 import matplotlib.pyplot as plt
 from numba import jit
-from scipy import ndimage
+from skimage import measure
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from s3dxrd.utils.stiffness import _vec_to_tens
 
 
 def vtk_to_numpy(vtkfile, plot=False):
@@ -111,10 +113,11 @@ def alphashape(coords, values, nlayers=1, plot=False):
     keys = [tuple(np.round(c, 5)) for c in coords]
     data_dict = dict(zip(keys, values.T))
     components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY"]
-    bounday_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coords])
+    boundary_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coords])
     pointsToVTK("/home/philip/Desktop/grain_boundary", boundary_coords[:, 0], boundary_coords[:, 1],
-                boundary_coords[:, 2], dict(zip(components, np.ascontiguousarray(bounday_data.T))))
-    return boundary_coords
+                boundary_coords[:, 2], dict(zip(components, np.ascontiguousarray(boundary_data.T))))
+
+    return boundary_coords, boundary_data, transform_scale, inv_transform_direction, voxels
 
 
 def _min_absolute_value(a1, a2):
@@ -149,7 +152,7 @@ def _check_bc_coord_equality(boundary, coords):
     print("Passed boundary equality check!")
 
 
-def project_to_plane(boundary_coordinates, coordinates, values, projection_function, plot=False):
+def project_to_plane(boundary_coordinates, coordinates, values, projection_function, normal_stresses=None, plot=False):
     cms = (np.sum(boundary_coordinates, axis=0) / np.shape(boundary_coordinates)[0])
     coordinates = np.pad(coordinates, ((0, 0), (0, 1)), constant_values=1)
     boundary_coordinates = np.pad(boundary_coordinates, ((0, 0), (0, 1)), constant_values=1)
@@ -179,7 +182,7 @@ def project_to_plane(boundary_coordinates, coordinates, values, projection_funct
         # ax.set_ylim([0, 3000])
         plt.show()
 
-    components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY"]
+    components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY", "Normal"]
     keys = [tuple(np.round(c, 5)) for c in coordinates[:, :3]]
     data_dict = dict(zip(keys, values.T))
 
@@ -188,9 +191,9 @@ def project_to_plane(boundary_coordinates, coordinates, values, projection_funct
                 np.zeros(np.shape(projected_coords)[0]), dict(zip(components, np.ascontiguousarray(bounday_data.T))))
 
 
-def _find_by_vector_norm(assortment, target):
+def _find_by_vector_norm(assortment, target, thres):
     for indx in enumerate(assortment):
-        if np.linalg.norm(assortment[indx] - target) < 1e-10:
+        if np.linalg.norm(assortment[indx] - target) < thres:
             return indx
 
 
@@ -199,7 +202,7 @@ def _carthesian_to_spherical(coord, cms):
     r = np.linalg.norm(location)
     phi = math.asin(location[2] / r)
     lamda = math.atan2(location[1], location[0])
-    return (r, phi, lamda)
+    return r, phi, lamda
 
 
 def _mercator(spherical_coordinates):
@@ -210,23 +213,70 @@ def _mercator(spherical_coordinates):
 
 
 def _winkel_III(spherical_coordinates):
-    delta = [np.arccos(np.cos(sphere_coord[1]) * np.cos(sphere_coord[2]/2)) for sphere_coord in spherical_coordinates]
-    lamda = [np.arccos(np.sin(sphere_coord[1])/np.sin(delta[i])) for i, sphere_coord in enumerate(spherical_coordinates)]
+    delta = [np.arccos(np.cos(sphere_coord[1]) * np.cos(sphere_coord[2] / 2)) for sphere_coord in spherical_coordinates]
+    lamda = [np.arccos(np.sin(sphere_coord[1]) / np.sin(delta[i]))
+             for i, sphere_coord in enumerate(spherical_coordinates)]
 
-    x = [0.5 * sphere_coord[0] * (2 * np.sign(sphere_coord[2]) * delta[i] * np.sin(lamda[i]) + sphere_coord[2] * np.cos(np.deg2rad(40)))
+    x = [0.5 * sphere_coord[0] * (2 * np.sign(sphere_coord[2]) * delta[i] * np.sin(lamda[i]) + sphere_coord[2] *
+                                  np.cos(np.deg2rad(40))) for i, sphere_coord in enumerate(spherical_coordinates)]
+    y = [0.5 * sphere_coord[0] * (delta[i] * np.cos(lamda[i]) + sphere_coord[1])
          for i, sphere_coord in enumerate(spherical_coordinates)]
-    y = [0.5 * sphere_coord[0] * (delta[i] * np.cos(lamda[i]) + sphere_coord[1]) for i, sphere_coord in enumerate(spherical_coordinates)]
-    """
-    phi_1 = np.arccos(2 / np.pi)
-    alpha = [np.arccos(np.cos(sphere_coord[1]) * np.cos(sphere_coord[2] / 2)) for sphere_coord in spherical_coordinates]
-    x = [0.5 * (sphere_coord[2] * np.cos(phi_1) + (2 * np.cos(sphere_coord[1]) * np.sin(sphere_coord[2] / 2)) /
-                np.sinc(alpha[i])) for i, sphere_coord in enumerate(spherical_coordinates)]
-    y = [0.5 * (sphere_coord[1] + (np.sin(sphere_coord[1]) / np.sinc(alpha[i])))
-         for i, sphere_coord in enumerate(spherical_coordinates)]
-    """
     return np.vstack((x, y)).T
 
 
+def _find_normals(voxels, boundary_points, boundary_data, scale_mat, inv_dir_mat, plot=False):
+    verts, faces, normals, values = measure.marching_cubes(voxels, step_size=1)
+    verts_4d = np.hstack((verts, np.ones((verts.shape[0], 1))))
+    verts_coords = (scale_mat @ (inv_dir_mat @ verts_4d.T)).T[:, :3]
+    mininds = []
+    avg_normals = np.zeros_like(boundary_points)
+
+    for i, bp in enumerate(boundary_points):
+        # Note that these dimesions fo not match since verts_coords is nverts x 3 and bp is 1 x 3. Numpy broadcasting
+        # should take care of this automatically.
+        diffs = np.linalg.norm(verts_coords - bp, axis=1)
+        mindiff = np.inf
+        diffinds = []
+        for j, diff in enumerate(diffs):
+            if diff < mindiff:
+                diffinds = [j]
+                mindiff = diff
+            elif np.abs(diff - mindiff) < 1e-8:
+                diffinds.append(j)
+        mininds.append(diffinds)
+        avg_normals[i] = np.sum(normals[diffinds], axis=0) / np.size(diffinds)
+        avg_normals[i] /= np.linalg.norm(avg_normals[i])
+
+    normal_stresses = [_vec_to_tens(boundary_data[row]) @ avg_normals[row].T
+                       for row in range(np.shape(boundary_data)[0])]
+
+    if plot:
+        xverts = [arr[0] for arr in verts_coords]
+        yverts = [arr[1] for arr in verts_coords]
+        zverts = [arr[2] for arr in verts_coords]
+
+        xbound = [arr[0] for arr in boundary_points]
+        ybound = [arr[1] for arr in boundary_points]
+        zbound = [arr[2] for arr in boundary_points]
+
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        # ax.scatter(xverts, yverts, zverts, c='g', s=1)
+
+        mesh = Poly3DCollection(verts_coords[faces])
+        mesh.set_edgecolor('k')
+        mesh.set_alpha(1)
+        ax.add_collection3d(mesh)
+        # ax.scatter(xbound, ybound, zbound, c='r')
+        ax.quiver(boundary_points[:, 0], boundary_points[:, 1], boundary_points[:, 2],
+                  avg_normals[:, 0], avg_normals[:, 1], avg_normals[:, 2], length=30, color='y')
+
+        plt.show()
+    return avg_normals
+
+
 vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
-boundary = alphashape(coords, vals, plot=False)
-project_to_plane(boundary, coords, vals, _winkel_III)
+boundary_coords, boundary_data,  transform_scale, inv_transform_direction, voxels = alphashape(coords, vals, plot=False)
+normal_stresses = _find_normals(voxels, boundary_coords, boundary_data, transform_scale, inv_transform_direction)
+
+project_to_plane(boundary_coords, coords, vals, _winkel_III)
