@@ -1,6 +1,6 @@
 import datetime
 import math
-
+from pyevtk.hl import pointsToVTK
 import numpy as np
 import vtkmodules.vtkIOXML as vtk_xml
 import vtkmodules.util.numpy_support as vtk_np
@@ -32,6 +32,7 @@ def vtk_to_numpy(vtkfile, plot=False):
     components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY"]
     coords = vtk_np.vtk_to_numpy(data.GetPoints().GetData())
     values = [vtk_np.vtk_to_numpy(data.GetPointData().GetArray(comp)) for comp in components]
+
     if plot:
         xcoords = [arr[0] for arr in coords]
         ycoords = [arr[1] for arr in coords]
@@ -43,7 +44,7 @@ def vtk_to_numpy(vtkfile, plot=False):
     return np.array(values), coords
 
 
-def alphashape(coords, nlayers=1, plot=False):
+def alphashape(coords, values, nlayers=1, plot=False):
     # TODO: Implement multi-layer alpha shape calculation.
     """
     Calculate the alpha shape (the concave hull) for a point cloud consisting of a given set of
@@ -107,6 +108,12 @@ def alphashape(coords, nlayers=1, plot=False):
         plt.show()
 
     _check_bc_coord_equality(boundary_coords, coords)
+    keys = [tuple(np.round(c, 5)) for c in coords]
+    data_dict = dict(zip(keys, values.T))
+    components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY"]
+    bounday_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coords])
+    pointsToVTK("/home/philip/Desktop/grain_boundary", boundary_coords[:, 0], boundary_coords[:, 1],
+                boundary_coords[:, 2], dict(zip(components, np.ascontiguousarray(bounday_data.T))))
     return boundary_coords
 
 
@@ -142,19 +149,16 @@ def _check_bc_coord_equality(boundary, coords):
     print("Passed boundary equality check!")
 
 
-def project_to_plane(boundary, coordinates, values, projection_function, plot=True):
-    # TODO: Add display of tensor values by writing to VTK file.
-    radius = 25.
-
-    cms = (np.sum(boundary, axis=0) / np.shape(boundary)[0])
+def project_to_plane(boundary_coordinates, coordinates, values, projection_function, plot=False):
+    cms = (np.sum(boundary_coordinates, axis=0) / np.shape(boundary_coordinates)[0])
     coordinates = np.pad(coordinates, ((0, 0), (0, 1)), constant_values=1)
-    boundary = np.pad(boundary, ((0, 0), (0, 1)), constant_values=1)
+    boundary_coordinates = np.pad(boundary_coordinates, ((0, 0), (0, 1)), constant_values=1)
 
     move_grain_to_cms = np.array([[1, 0, 0, -cms[0]], [0, 1, 0, -cms[1]], [0, 0, 1, -cms[2]], [0, 0, 0, 1]])
     coordinates = (move_grain_to_cms @ coordinates.T).T
-    boundary = ((move_grain_to_cms @ boundary.T).T)[:, :3]
+    boundary_coordinates = (move_grain_to_cms @ boundary_coordinates.T).T[:, :3]
     # Note: from here on the grain is centered at the origin, but the stresses/strains have not changed direction!
-    sphere_coords = [_carthesian_to_spherical(bc, np.array([0, 0, 0])) for bc in boundary]
+    sphere_coords = [_carthesian_to_spherical(bc, np.array([0, 0, 0])) for bc in boundary_coordinates]
     projected_coords = projection_function(sphere_coords)
 
     if plot:
@@ -172,8 +176,16 @@ def project_to_plane(boundary, coordinates, values, projection_function, plot=Tr
         fig = plt.figure(2)
         ax = plt.axes()
         ax.scatter(xcoords_projected, ycoords_projected)
-        #ax.set_ylim([0, 3000])
+        # ax.set_ylim([0, 3000])
         plt.show()
+
+    components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY"]
+    keys = [tuple(np.round(c, 5)) for c in coordinates[:, :3]]
+    data_dict = dict(zip(keys, values.T))
+
+    bounday_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coordinates])
+    pointsToVTK("/home/philip/Desktop/grain_flat_wink", projected_coords[:, 0], projected_coords[:, 1],
+                np.zeros(np.shape(projected_coords)[0]), dict(zip(components, np.ascontiguousarray(bounday_data.T))))
 
 
 def _find_by_vector_norm(assortment, target):
@@ -191,13 +203,30 @@ def _carthesian_to_spherical(coord, cms):
 
 
 def _mercator(spherical_coordinates):
-    mercator_coordinates_x = np.array([sphere_coord[0] * sphere_coord[2] for sphere_coord in spherical_coordinates])
-    mercator_coordinates_y = np.array([sphere_coord[0] * np.log(np.tan(np.pi / 4 + sphere_coord[1] / 2))
-                                       for sphere_coord in spherical_coordinates])
-    return np.vstack((mercator_coordinates_x, mercator_coordinates_y)).T
+    x = np.array([sphere_coord[0] * sphere_coord[2] for sphere_coord in spherical_coordinates])
+    y = np.array([sphere_coord[0] * np.log(np.tan(np.pi / 4 + sphere_coord[1] / 2))
+                  for sphere_coord in spherical_coordinates])
+    return np.vstack((x, y)).T
 
 
-vals, coords = vtk_to_numpy("/home/philip/Desktop/WIP-grains/grains/grain_stress_5.vtu")
-boundary = alphashape(coords, plot=False)
-project_to_plane(boundary, coords, vals, _mercator)
+def _winkel_III(spherical_coordinates):
+    delta = [np.arccos(np.cos(sphere_coord[1]) * np.cos(sphere_coord[2]/2)) for sphere_coord in spherical_coordinates]
+    lamda = [np.arccos(np.sin(sphere_coord[1])/np.sin(delta[i])) for i, sphere_coord in enumerate(spherical_coordinates)]
 
+    x = [0.5 * sphere_coord[0] * (2 * np.sign(sphere_coord[2]) * delta[i] * np.sin(lamda[i]) + sphere_coord[2] * np.cos(np.deg2rad(40)))
+         for i, sphere_coord in enumerate(spherical_coordinates)]
+    y = [0.5 * sphere_coord[0] * (delta[i] * np.cos(lamda[i]) + sphere_coord[1]) for i, sphere_coord in enumerate(spherical_coordinates)]
+    """
+    phi_1 = np.arccos(2 / np.pi)
+    alpha = [np.arccos(np.cos(sphere_coord[1]) * np.cos(sphere_coord[2] / 2)) for sphere_coord in spherical_coordinates]
+    x = [0.5 * (sphere_coord[2] * np.cos(phi_1) + (2 * np.cos(sphere_coord[1]) * np.sin(sphere_coord[2] / 2)) /
+                np.sinc(alpha[i])) for i, sphere_coord in enumerate(spherical_coordinates)]
+    y = [0.5 * (sphere_coord[1] + (np.sin(sphere_coord[1]) / np.sinc(alpha[i])))
+         for i, sphere_coord in enumerate(spherical_coordinates)]
+    """
+    return np.vstack((x, y)).T
+
+
+vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
+boundary = alphashape(coords, vals, plot=False)
+project_to_plane(boundary, coords, vals, _winkel_III)
