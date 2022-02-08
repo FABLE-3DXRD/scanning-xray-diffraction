@@ -138,6 +138,12 @@ def boundary(coords, values, file, nlayers=1, normal_values=None, plot=False):
     return boundary_coords, boundary_data, transform_scale, inv_transform_direction, voxels
 
 
+def _min_absolute_value(a1, a2):
+    stacked = np.vstack((a1, a2))
+    indices = np.argmin(np.absolute(stacked), axis=0)
+    return [int(stacked[indices[0], 0]), int(stacked[indices[1], 1]), int(stacked[indices[2], 2])]
+
+
 def find_boundary(voxels):
     """
     Finds the boundary voxels using a linear search method.
@@ -294,7 +300,7 @@ def _winkel_III(lat_long):
              for i, coord in enumerate(lat_long)]
 
     x = [0.5 * coord[0] * (2 * np.sign(coord[2]) * delta[i] * np.sin(lamda[i]) + coord[2] *
-                                  np.cos(np.deg2rad(40))) for i, coord in enumerate(lat_long)]
+                           np.cos(np.deg2rad(40))) for i, coord in enumerate(lat_long)]
     y = [0.5 * coord[0] * (delta[i] * np.cos(lamda[i]) + coord[1])
          for i, coord in enumerate(lat_long)]
     return np.vstack((x, y)).T
