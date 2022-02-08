@@ -1,7 +1,6 @@
 import datetime
 import math
 import numpy
-
 from pyevtk.hl import pointsToVTK
 import numpy as np
 import vtkmodules.vtkIOXML as vtk_xml
@@ -23,7 +22,8 @@ def vtk_to_numpy(vtkfile, plot=False):
     :param vtkfile: The path of the file containing the original data as an unstructured grid.
     :type vtkfile: str
     :return: Numpy array containing the data provided in the input file.
-    :rtype: tuple[list[ndarray], ndarray]
+    :rtype: tuple[ndarray, ndarray]
+
     """
     fig = plt.figure()
     ax = plt.axes(projection='3d')
@@ -48,21 +48,31 @@ def vtk_to_numpy(vtkfile, plot=False):
     return np.array(values), coords
 
 
-def alphashape(coords, values, nlayers=1, normal_stresses=None, plot=False):
+def boundary(coords, values, file, nlayers=1, normal_values=None, plot=False):
     # TODO: Implement multi-layer alpha shape calculation.
     """
     Calculate the alpha shape (the concave hull) for a point cloud consisting of a given set of
     three-dimensional coordinates. The code presumes that the coordinates are given in microns and that the
     measurements are taken 25 microns apart.
 
+    :param file: The name of the .vtu file where the boundary will be output.
+    :type file: str
     :param coords: List of coordinates in x, y and z for the different points of the point cloud.
     :type coords:  ndarray
     :param nlayers: Number of layers in the alpha shape, Defaults to one (the outermost layer).
     :type nlayers: int
     :param plot: Toggle plotting of the alpha shape as a point cloud and as a tessellated mesh body. Defaults to False.
     :type plot: bool
-    :return: The coordinates of the points in the point cloud corresponding to the alpha shape.
-    :rtype: ndarray
+    :param values: Values of the different normal and shear stresses or strains to be assigned to the boundary points.
+    :type values: ndarray
+    :param normal_values: Parameter used for testing. If the boundary points are already known,
+        the values for a quantity in the direction of the surface normal can be supplied here
+        for plotting at the boundary points.
+    :return: Tuple containing ndarrays of the coordinates of the points in the point cloud corresponding to the boundary
+        of the input point cloud, the data at the boundary points, the matrix used for transforming the voxel
+        representation of the grain into the sample coordinate system, the matrix used to move the grain from the centre
+        of the coordinate system to the original position of the grain and the voxelated grain representation.
+    :rtype: tuple[ndarray, ndarray, ndarray, ndarray, ndarray]
     """
     coords_4d = np.hstack((coords, np.ones((coords.shape[0], 1))))
 
@@ -86,7 +96,7 @@ def alphashape(coords, values, nlayers=1, normal_stresses=None, plot=False):
         voxels[x, y, z] = 1
     voxels = np.pad(voxels, 1, constant_values=0)
     t1 = datetime.datetime.now()
-    boundary_voxels = find_boundary_by_force(voxels)
+    boundary_voxels = find_boundary(voxels)
     t2 = datetime.datetime.now()
 
     print("Execution time for boundary searching is: " + str(t2 - t1))
@@ -118,28 +128,31 @@ def alphashape(coords, values, nlayers=1, normal_stresses=None, plot=False):
     boundary_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coords])
 
     # For testing purposes only, requires previous calculation of the boundary points.
-    if normal_stresses is not None:
+    if normal_values is not None:
         components.append("Normal")
-        boundary_data = np.hstack((boundary_data, numpy.reshape(normal_stresses, (-1, 1))))
+        boundary_data = np.hstack((boundary_data, numpy.reshape(normal_values, (-1, 1))))
 
-    pointsToVTK("/home/philip/Desktop/grain_boundary", boundary_coords[:, 0], boundary_coords[:, 1],
+    pointsToVTK(file, boundary_coords[:, 0], boundary_coords[:, 1],
                 boundary_coords[:, 2], dict(zip(components, np.ascontiguousarray(boundary_data.T))))
 
     return boundary_coords, boundary_data, transform_scale, inv_transform_direction, voxels
 
 
-def _min_absolute_value(a1, a2):
-    stacked = np.vstack((a1, a2))
-    indices = np.argmin(np.absolute(stacked), axis=0)
-    return [int(stacked[indices[0], 0]), int(stacked[indices[1], 1]), int(stacked[indices[2], 2])]
+def find_boundary(voxels):
+    """
+    Finds the boundary voxels using a linear search method.
 
-
-def find_boundary_by_force(voxels):
+    :param voxels: A binarised voxel representation of the grains where 1 corresponds to the voxel being part of the
+    grains, and 0 means that the voxel is not part of the grain.
+    :type voxels: ndarray
+    :return: Voxelated representation of the grain boundary.
+    :rtype: ndarray
+    """
     dim = np.shape(voxels)
     boundary = np.zeros_like(voxels)
-    for i in range(0, dim[0]):
-        for j in range(0, dim[1]):
-            for k in range(0, dim[2]):
+    for i in range(1, dim[0] - 1):
+        for j in range(1, dim[1] - 1):
+            for k in range(1, dim[2] - 1):
                 if voxels[i, j, k] == 1:
                     if np.any(voxels[i - 1:i + 2, j - 1:j + 2, k - 1:k + 2] == 0.):
                         boundary[i, j, k] = 1
@@ -151,6 +164,16 @@ def find_boundary_by_force(voxels):
 
 @jit
 def _check_bc_coord_equality(boundary, coords):
+    """
+    Private method for checking that the calculated boundary points are a subset of the entire pointcloud.
+
+    :param boundary: The boundary points
+    :type boundary: ndarray
+    :param coords: The coordinates defining the pointcloud.
+    :type coords: ndarray
+    :raise: RuntimeWarning
+    :return: None
+    """
     for bc in boundary:
         compare_bc_to_coords = np.array([(np.linalg.norm(coord - bc) < 1e-10) for coord in coords])
         if not np.any(compare_bc_to_coords):
@@ -160,8 +183,28 @@ def _check_bc_coord_equality(boundary, coords):
     print("Passed boundary equality check!")
 
 
-def project_to_plane(boundary_coordinates, coordinates, values, projection_function, normal_stresses=None,
-                     avg_normals=None, plot=False):
+def project_to_plane(boundary_coordinates, coordinates, values, projection_function, file, normal_values=None,
+                     plot=False):
+    """
+    Project tensorial quantities calculated for the boundary of a 3D spheriod onto a 2D surface.
+
+    :param boundary_coordinates: The coordinates for the boundary of the 3D surface.
+    :type boundary_coordinates: ndarray
+    :param coordinates: The coordinates of the pointcloud defining the 3D volume where the boundary originates.
+    :type coordinates: ndarray
+    :param values: The tensorial quantities that will be projected at the 2D surface.
+    :type values: ndarray
+    :param projection_function: A function for converting coordinates defined using radius, latitude and longitude into
+        coordinates in the XY-plane.
+    :type projection_function: any
+    :param file: The filename where the resulting .vtu file will be output.
+    :type file: str
+    :param normal_values: Values in the direction of the surface normal to the body, calculated at the boundary points.
+    :type normal_values: ndarray
+    :param plot: Toggle plotting.
+    :type plot: bool
+    :return: None
+    """
     cms = (np.sum(boundary_coordinates, axis=0) / np.shape(boundary_coordinates)[0])
     coordinates = np.pad(coordinates, ((0, 0), (0, 1)), constant_values=1)
     boundary_coordinates = np.pad(boundary_coordinates, ((0, 0), (0, 1)), constant_values=1)
@@ -196,21 +239,25 @@ def project_to_plane(boundary_coordinates, coordinates, values, projection_funct
     data_dict = dict(zip(keys, values.T))
     boundary_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coordinates])
 
-    if normal_stresses is not None:
+    if normal_values is not None:
         components.append("Normal")
-        boundary_data = np.hstack((boundary_data, numpy.reshape(normal_stresses, (-1, 1))))
+        boundary_data = np.hstack((boundary_data, numpy.reshape(normal_values, (-1, 1))))
 
-    pointsToVTK("/home/philip/Desktop/grain_flat_wink", projected_coords[:, 0], projected_coords[:, 1],
+    pointsToVTK(file, projected_coords[:, 0], projected_coords[:, 1],
                 np.zeros(np.shape(projected_coords)[0]), dict(zip(components, np.ascontiguousarray(boundary_data.T))))
 
 
-def _find_by_vector_norm(assortment, target, thres):
-    for indx in enumerate(assortment):
-        if np.linalg.norm(assortment[indx] - target) < thres:
-            return indx
-
-
 def _carthesian_to_spherical(coord, cms):
+    """
+    Private method for converting Carthesian coordinates into coordinates based on radius, latitude and longitude.
+
+    :param coord: A vector containing the Carthesian coordinates of a point.
+    :type coord: ndarray
+    :param cms: The centroid of the pointcloud in Carthesian coordinates.
+    :type cms: ndarray
+    :return: Tuple contaning the radial coordinate, the latitude and the longitude.
+    :rtype: tuple
+    """
     location = coord - cms
     r = np.linalg.norm(location)
     phi = math.asin(location[2] / r)
@@ -218,26 +265,65 @@ def _carthesian_to_spherical(coord, cms):
     return r, phi, lamda
 
 
-def _mercator(spherical_coordinates):
-    x = np.array([sphere_coord[0] * sphere_coord[2] for sphere_coord in spherical_coordinates])
-    y = np.array([sphere_coord[0] * np.log(np.tan(np.pi / 4 + sphere_coord[1] / 2))
-                  for sphere_coord in spherical_coordinates])
+def _mercator(lat_long):
+    """
+    Calculate the 2D X and Y coordinates from a set of coordinates based on radius, latitude and longitude using the
+    Mercator projection.
+    :param lat_long: The coordinates of the points to be projected expressed as radius, latitude and longitude.
+    :type lat_long: list[tuple]
+    :return: The projected coordinates in the XY-plane.
+    :rtype: ndarray
+    """
+    x = np.array([coord[0] * coord[2] for coord in lat_long])
+    y = np.array([coord[0] * np.log(np.tan(np.pi / 4 + coord[1] / 2))
+                  for coord in lat_long])
     return np.vstack((x, y)).T
 
 
-def _winkel_III(spherical_coordinates):
-    delta = [np.arccos(np.cos(sphere_coord[1]) * np.cos(sphere_coord[2] / 2)) for sphere_coord in spherical_coordinates]
-    lamda = [np.arccos(np.sin(sphere_coord[1]) / np.sin(delta[i]))
-             for i, sphere_coord in enumerate(spherical_coordinates)]
+def _winkel_III(lat_long):
+    """
+    Calculate the 2D X and Y coordinates from a set of coordinates based on radius, latitude and longitude using the
+    Winkel III projection.
+    :param lat_long: The coordinates of the points to be projected expressed as radius, latitude and longitude.
+    :type lat_long: list[tuple]
+    :return: The projected coordinates in the XY-plane.
+    :rtype: ndarray
+    """
+    delta = [np.arccos(np.cos(coord[1]) * np.cos(coord[2] / 2)) for coord in lat_long]
+    lamda = [np.arccos(np.sin(coord[1]) / np.sin(delta[i]))
+             for i, coord in enumerate(lat_long)]
 
-    x = [0.5 * sphere_coord[0] * (2 * np.sign(sphere_coord[2]) * delta[i] * np.sin(lamda[i]) + sphere_coord[2] *
-                                  np.cos(np.deg2rad(40))) for i, sphere_coord in enumerate(spherical_coordinates)]
-    y = [0.5 * sphere_coord[0] * (delta[i] * np.cos(lamda[i]) + sphere_coord[1])
-         for i, sphere_coord in enumerate(spherical_coordinates)]
+    x = [0.5 * coord[0] * (2 * np.sign(coord[2]) * delta[i] * np.sin(lamda[i]) + coord[2] *
+                                  np.cos(np.deg2rad(40))) for i, coord in enumerate(lat_long)]
+    y = [0.5 * coord[0] * (delta[i] * np.cos(lamda[i]) + coord[1])
+         for i, coord in enumerate(lat_long)]
     return np.vstack((x, y)).T
 
 
-def _find_normals_mc(voxels, boundary_points, boundary_data, scale_mat, inv_dir_mat, plot=False):
+def find_normals_mc(voxels, boundary_points, boundary_data, scale_mat, inv_dir_mat, plot=False):
+    """
+    Find the normals of the surface created from a set of boundary points, using the Marching Cubes algorithm. The
+    normals are calculated as an average of the normals at the surface vertices that are closest to the boundary points.
+
+    :param voxels: Three-dimensional array providing a voxelated representation of the grain.
+    :type voxels: ndarray
+    :param boundary_points: The Carthesian coordinates of the boundary points.
+    :type boundary_points: ndarray
+    :param boundary_data: The stress/strain vectors at the boundary points.
+    :type boundary_data: ndarray
+    :param scale_mat: The matrix used to scale the voxels into the original coordinates of the point cloud.
+    :type scale_mat: ndarray
+    :param inv_dir_mat: The matrix which moves the grain centroid from the origin of the coordinate system to its
+        position in the sample coordinate system.
+    :type inv_dir_mat: ndarray
+    :param plot: Toggle plotting.
+    :type plot: bool
+    :return: Tuple containing the average normals, the values of boundary_data projected on the normals at the
+        boundary points and the scalar product of the normals calculated using the Marching Cubes algorithm with the
+        corresponding vectors directed from the grain centroid to the boundary points, i.e. an alternative
+        approximation of the normal vectors.
+    :rtype: tuple[ndarray, ndarray, ndarray]
+    """
     verts, faces, normals, values = measure.marching_cubes(voxels, step_size=1)
     verts_4d = np.hstack((verts, np.ones((verts.shape[0], 1))))
     normals_4d = np.hstack((normals, np.ones((normals.shape[0], 1))))
@@ -271,8 +357,8 @@ def _find_normals_mc(voxels, boundary_points, boundary_data, scale_mat, inv_dir_
         return avg_normals
 
     avg_normals = _search_for_normals(boundary_points)
-    normal_stresses = np.array([avg_normals[row] @ _vec_to_tens(boundary_data[row]) @ avg_normals[row].T
-                                for row in range(np.shape(boundary_data)[0])])
+    normal_values = np.array([avg_normals[row] @ _vec_to_tens(boundary_data[row]) @ avg_normals[row].T
+                              for row in range(np.shape(boundary_data)[0])])
 
     cms = (np.sum(boundary_points, axis=0) / np.shape(boundary_points)[0])
     norm_from_cms = (boundary_points - cms)
@@ -308,12 +394,14 @@ def _find_normals_mc(voxels, boundary_points, boundary_data, scale_mat, inv_dir_
         ax.quiver(boundary_points[:, 0], boundary_points[:, 1], boundary_points[:, 2],
                   norm_from_cms[:, 0], norm_from_cms[:, 1], norm_from_cms[:, 2], length=300, color='g')
         plt.show()
-    return avg_normals, normal_stresses, deviation
+    return avg_normals, normal_values, deviation
 
 
 vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
-boundary_coords, boundary_data, transform_scale, inv_transform_direction, voxels = alphashape(coords, vals, plot=False)
-avg_normals, normal_stresses, deviation = _find_normals_mc(voxels, boundary_coords, boundary_data, transform_scale,
-                                                           inv_transform_direction)
-alphashape(coords, vals, normal_stresses=normal_stresses, plot=False)
-project_to_plane(boundary_coords, coords, vals, _winkel_III, normal_stresses=normal_stresses, avg_normals=avg_normals)
+boundary_coords, boundary_data, transform_scale, inv_transform_direction, voxels = boundary(coords, vals,
+                                                                                            "/home/philip/Desktop/grain_boundary",
+                                                                                            plot=False)
+avg_normals, normal_stresses, deviation = find_normals_mc(voxels, boundary_coords, boundary_data, transform_scale,
+                                                          inv_transform_direction)
+boundary(coords, vals, normal_values=normal_stresses, plot=False)
+project_to_plane(boundary_coords, coords, vals, _winkel_III, normal_values=normal_stresses)
