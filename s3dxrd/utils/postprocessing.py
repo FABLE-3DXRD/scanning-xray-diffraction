@@ -1,5 +1,7 @@
 import datetime
 import math
+import numpy
+
 from pyevtk.hl import pointsToVTK
 import numpy as np
 import vtkmodules.vtkIOXML as vtk_xml
@@ -46,7 +48,7 @@ def vtk_to_numpy(vtkfile, plot=False):
     return np.array(values), coords
 
 
-def alphashape(coords, values, nlayers=1, plot=False):
+def alphashape(coords, values, nlayers=1, normal_stresses=None, plot=False):
     # TODO: Implement multi-layer alpha shape calculation.
     """
     Calculate the alpha shape (the concave hull) for a point cloud consisting of a given set of
@@ -114,6 +116,12 @@ def alphashape(coords, values, nlayers=1, plot=False):
     data_dict = dict(zip(keys, values.T))
     components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY"]
     boundary_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coords])
+
+    # For testing purposes only, requires previous calculation of the boundary points.
+    if normal_stresses is not None:
+        components.append("Normal")
+        boundary_data = np.hstack((boundary_data, numpy.reshape(normal_stresses, (-1, 1))))
+
     pointsToVTK("/home/philip/Desktop/grain_boundary", boundary_coords[:, 0], boundary_coords[:, 1],
                 boundary_coords[:, 2], dict(zip(components, np.ascontiguousarray(boundary_data.T))))
 
@@ -152,7 +160,8 @@ def _check_bc_coord_equality(boundary, coords):
     print("Passed boundary equality check!")
 
 
-def project_to_plane(boundary_coordinates, coordinates, values, projection_function, normal_stresses=None, plot=False):
+def project_to_plane(boundary_coordinates, coordinates, values, projection_function, normal_stresses=None,
+                     avg_normals=None, plot=False):
     cms = (np.sum(boundary_coordinates, axis=0) / np.shape(boundary_coordinates)[0])
     coordinates = np.pad(coordinates, ((0, 0), (0, 1)), constant_values=1)
     boundary_coordinates = np.pad(boundary_coordinates, ((0, 0), (0, 1)), constant_values=1)
@@ -182,13 +191,17 @@ def project_to_plane(boundary_coordinates, coordinates, values, projection_funct
         # ax.set_ylim([0, 3000])
         plt.show()
 
-    components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY", "Normal"]
+    components = ["XX", "YY", "ZZ", "YZ", "XZ", "XY"]
     keys = [tuple(np.round(c, 5)) for c in coordinates[:, :3]]
     data_dict = dict(zip(keys, values.T))
+    boundary_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coordinates])
 
-    bounday_data = np.vstack([data_dict[tuple(np.round(bc, 5))] for bc in boundary_coordinates])
+    if normal_stresses is not None:
+        components.append("Normal")
+        boundary_data = np.hstack((boundary_data, numpy.reshape(normal_stresses, (-1, 1))))
+
     pointsToVTK("/home/philip/Desktop/grain_flat_wink", projected_coords[:, 0], projected_coords[:, 1],
-                np.zeros(np.shape(projected_coords)[0]), dict(zip(components, np.ascontiguousarray(bounday_data.T))))
+                np.zeros(np.shape(projected_coords)[0]), dict(zip(components, np.ascontiguousarray(boundary_data.T))))
 
 
 def _find_by_vector_norm(assortment, target, thres):
@@ -224,31 +237,51 @@ def _winkel_III(spherical_coordinates):
     return np.vstack((x, y)).T
 
 
-def _find_normals(voxels, boundary_points, boundary_data, scale_mat, inv_dir_mat, plot=False):
+def _find_normals_mc(voxels, boundary_points, boundary_data, scale_mat, inv_dir_mat, plot=False):
     verts, faces, normals, values = measure.marching_cubes(voxels, step_size=1)
     verts_4d = np.hstack((verts, np.ones((verts.shape[0], 1))))
+    normals_4d = np.hstack((normals, np.ones((normals.shape[0], 1))))
+
     verts_coords = (scale_mat @ (inv_dir_mat @ verts_4d.T)).T[:, :3]
-    mininds = []
-    avg_normals = np.zeros_like(boundary_points)
+    normal_coords = ((np.linalg.inv(scale_mat @ inv_dir_mat)).T @ normals_4d.T).T[:, :3]
+    for k in range(np.shape(normal_coords)[0]):
+        normal_coords[k] = np.divide(normal_coords[k], np.linalg.norm(normal_coords[k]))
 
-    for i, bp in enumerate(boundary_points):
-        # Note that these dimesions fo not match since verts_coords is nverts x 3 and bp is 1 x 3. Numpy broadcasting
-        # should take care of this automatically.
-        diffs = np.linalg.norm(verts_coords - bp, axis=1)
-        mindiff = np.inf
-        diffinds = []
-        for j, diff in enumerate(diffs):
-            if diff < mindiff:
-                diffinds = [j]
-                mindiff = diff
-            elif np.abs(diff - mindiff) < 1e-8:
-                diffinds.append(j)
-        mininds.append(diffinds)
-        avg_normals[i] = np.sum(normals[diffinds], axis=0) / np.size(diffinds)
-        avg_normals[i] /= np.linalg.norm(avg_normals[i])
+    @jit
+    def _search_for_normals(boundary_points):
+        avg_normals = np.zeros_like(boundary_points)
+        for i, bp in enumerate(boundary_points):
+            # Note that these dimensions fo not match since verts_coords is nverts x 3 and bp is 1 x 3. Numpy
+            # broadcasting should take care of this automatically.
+            diffs = np.zeros(np.shape(verts_coords)[0])
+            for j in range(np.shape(verts_coords)[0]):
+                diffs[j] = np.linalg.norm(verts_coords[j, :] - bp)
 
-    normal_stresses = [_vec_to_tens(boundary_data[row]) @ avg_normals[row].T
-                       for row in range(np.shape(boundary_data)[0])]
+            mindiff = np.inf
+            diffinds = np.empty(1, dtype=numpy.int64)
+            for j, diff in enumerate(diffs):
+                if diff < mindiff:
+                    diffinds = np.array([j])
+                    mindiff = diff
+                elif np.abs(diff - mindiff) < 1e-8:
+                    diffinds = np.append(diffinds, j)
+            avg_normals[i] = np.sum(normal_coords[diffinds], axis=0) / np.shape(diffinds)[0]
+            avg_normals[i] = avg_normals[i] / np.linalg.norm(avg_normals[i])
+
+        return avg_normals
+
+    avg_normals = _search_for_normals(boundary_points)
+    normal_stresses = np.array([avg_normals[row] @ _vec_to_tens(boundary_data[row]) @ avg_normals[row].T
+                                for row in range(np.shape(boundary_data)[0])])
+
+    cms = (np.sum(boundary_points, axis=0) / np.shape(boundary_points)[0])
+    norm_from_cms = (boundary_points - cms)
+    for l, t in enumerate(norm_from_cms):
+        norm_from_cms[l] = t / np.linalg.norm(t)
+
+    deviation = np.array([np.dot(norm_from_cms[i], avg_normals[i]) for i in range(np.shape(avg_normals)[0])])
+    for t in norm_from_cms:
+        print(np.linalg.norm(t))
 
     if plot:
         xverts = [arr[0] for arr in verts_coords]
@@ -265,18 +298,22 @@ def _find_normals(voxels, boundary_points, boundary_data, scale_mat, inv_dir_mat
 
         mesh = Poly3DCollection(verts_coords[faces])
         mesh.set_edgecolor('k')
-        mesh.set_alpha(1)
+        mesh.set_alpha(0.5)
         ax.add_collection3d(mesh)
         # ax.scatter(xbound, ybound, zbound, c='r')
+
         ax.quiver(boundary_points[:, 0], boundary_points[:, 1], boundary_points[:, 2],
                   avg_normals[:, 0], avg_normals[:, 1], avg_normals[:, 2], length=30, color='y')
 
+        ax.quiver(boundary_points[:, 0], boundary_points[:, 1], boundary_points[:, 2],
+                  norm_from_cms[:, 0], norm_from_cms[:, 1], norm_from_cms[:, 2], length=300, color='g')
         plt.show()
-    return avg_normals
+    return avg_normals, normal_stresses, deviation
 
 
 vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
-boundary_coords, boundary_data,  transform_scale, inv_transform_direction, voxels = alphashape(coords, vals, plot=False)
-normal_stresses = _find_normals(voxels, boundary_coords, boundary_data, transform_scale, inv_transform_direction)
-
-project_to_plane(boundary_coords, coords, vals, _winkel_III)
+boundary_coords, boundary_data, transform_scale, inv_transform_direction, voxels = alphashape(coords, vals, plot=False)
+avg_normals, normal_stresses, deviation = _find_normals_mc(voxels, boundary_coords, boundary_data, transform_scale,
+                                                           inv_transform_direction)
+alphashape(coords, vals, normal_stresses=normal_stresses, plot=False)
+project_to_plane(boundary_coords, coords, vals, _winkel_III, normal_stresses=normal_stresses, avg_normals=avg_normals)
