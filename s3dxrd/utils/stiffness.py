@@ -137,11 +137,11 @@ def calculate_stress_by_vector_rotation(wlsq_strain, U):
     for i in range(np.size(strain_mat, 0)):
         strain_vector = strain_mat[i, :]
         # Transform the strain_vector to the grain coordinate system.
-        strain_tensor = _vec_to_tens(strain_vector)
+        strain_tensor = vec_to_tens(strain_vector)
         grain_strain_tensor = U.T @ strain_tensor @ U
 
         # Convert the grain strain vector to Voigt notation.
-        grain_strain_vector = _tens_to_vec(grain_strain_tensor)
+        grain_strain_vector = tens_to_vec(grain_strain_tensor)
         grain_strain_vector[3:6] *= 2
 
         # Calculate the stress in the grain coordinate system and apply the U matrix to transform the strain back to
@@ -149,9 +149,9 @@ def calculate_stress_by_vector_rotation(wlsq_strain, U):
         grain_stress_vector = C @ grain_strain_vector
 
         # Convert the stress vector to the sample coordinate system.
-        grain_stess_tensor = _vec_to_tens(grain_stress_vector)
+        grain_stess_tensor = vec_to_tens(grain_stress_vector)
         sample_stress_tensor = U @ grain_stess_tensor @ U.T
-        sample_stress_vector = _tens_to_vec(sample_stress_tensor)
+        sample_stress_vector = tens_to_vec(sample_stress_tensor)
 
         stress_mat[i, :] = sample_stress_vector
 
@@ -182,7 +182,7 @@ def calc_principal_stresses(wlsq_stress):
     principal_stresses = np.zeros((nrows, 3))
 
     for i in range(nrows):
-        sigma = _vec_to_tens(stress[i, :])
+        sigma = vec_to_tens(stress[i, :])
         eigenvals, eigenvects = np.linalg.eig(sigma)
         eigenvals = np.sort(eigenvals)[::-1]  # Should reverse the array so that it is ordered from greatest to least.
 
@@ -197,7 +197,7 @@ def calc_principal_stresses(wlsq_stress):
     return principal_stresses
 
 
-def _vec_to_tens(vec):
+def vec_to_tens(vec):
     """
     Private function for converting 6 component strain or stress vectors into 3x3 tensors. Does not account for
     Voigt notation, i.e do **not** supply a vector where the shear components are multiplied by a factor of two.
@@ -209,7 +209,7 @@ def _vec_to_tens(vec):
     tens = np.row_stack(np.array([[vec[0], vec[5], vec[4]], [vec[5], vec[1], vec[3]], [vec[4], vec[3], vec[2]]]))
     return tens
 
-def _tens_to_vec(tens):
+def tens_to_vec(tens):
     """
        Private function for converting 3x3 tensors into 6 component strain or stress vectors. Does not account for
        Voigt notation, i.e it will **not** return a vector where the shear components are multiplied by a factor of two.

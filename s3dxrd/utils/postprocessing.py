@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from numba import jit
 from skimage import measure
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from s3dxrd.utils.stiffness import _vec_to_tens
+from s3dxrd.utils.stiffness import vec_to_tens
 
 
 def vtk_to_numpy(vtkfile, plot=False):
@@ -363,7 +363,7 @@ def find_normals_mc(voxels, boundary_points, boundary_data, scale_mat, inv_dir_m
         return avg_normals
 
     avg_normals = _search_for_normals(boundary_points)
-    normal_values = np.array([avg_normals[row] @ _vec_to_tens(boundary_data[row]) @ avg_normals[row].T
+    normal_values = np.array([avg_normals[row] @ vec_to_tens(boundary_data[row]) @ avg_normals[row].T
                               for row in range(np.shape(boundary_data)[0])])
 
     cms = (np.sum(boundary_points, axis=0) / np.shape(boundary_points)[0])
@@ -401,13 +401,3 @@ def find_normals_mc(voxels, boundary_points, boundary_data, scale_mat, inv_dir_m
                   norm_from_cms[:, 0], norm_from_cms[:, 1], norm_from_cms[:, 2], length=300, color='g')
         plt.show()
     return avg_normals, normal_values, deviation
-
-
-vals, coords = vtk_to_numpy("/home/philip/Desktop/grain_stress_5.vtu")
-boundary_coords, boundary_data, transform_scale, inv_transform_direction, voxels = boundary(coords, vals,
-                                                                                            "/home/philip/Desktop/grain_boundary",
-                                                                                            plot=False)
-avg_normals, normal_stresses, deviation = find_normals_mc(voxels, boundary_coords, boundary_data, transform_scale,
-                                                          inv_transform_direction)
-boundary(coords, vals, normal_values=normal_stresses, plot=False)
-project_to_plane(boundary_coords, coords, vals, _winkel_III, normal_values=normal_stresses)
